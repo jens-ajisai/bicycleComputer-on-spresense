@@ -1,0 +1,350 @@
+[FRAGMENT]
+
+[SECTION]
+TITLE: UI Design
+
+[REQUIREMENT]
+UID: HLD-UI
+STATUS: Approved
+VERIFICATION: Review
+STATEMENT: High-Level Design - Interfaces
+RATIONALE: None
+COMMENT: >>>
+The live image shall be instantly updated.
+
+Event-based Interface provided by UI Module
+
+Event               Direction   Parameter  Description                             
+=================== =========== =========== ========================================
+UITFT_EVT_ON        in                      Command to switch the TFT backlight on  
+UITFT_EVT_OFF       in                      Command to switch the TFT backlight off 
+BUTTON_EVT_PRESSED  out                     When the user button is pressed
+BUTTON_EVT_RELEASED out                     When the user button is released
+
+Event-based Interface used by UI Module
+
++------------------------------------------+-----------+-----------------------------+----------------------------------------------------------------------------------------+
+| Event                                    | Direction | Parameter                   | Description                                                                            |
++==========================================+===========+=============================+========================================================================================+
+| GNSS_EVT_POSITION                        | in        | lat lng fix speed direction | GNSS position information                                                              |
++------------------------------------------+-----------+-----------------------------+----------------------------------------------------------------------------------------+
+| GNSS_EVT_GEO_FENCE                       | in        | id transition               | Geofence event information                                                             |
++------------------------------------------+-----------+-----------------------------+----------------------------------------------------------------------------------------+
+| GLOBALSTATUS_EVT_UPDATE                  | in        | gStat                       | Global status update                                                                   |
++------------------------------------------+-----------+-----------------------------+----------------------------------------------------------------------------------------+
+| CYCLE_SENSOR_EVT_HEART_RATE_READING      | in        | heart rate                  | On notification of a heart rate reading.                                               |
++------------------------------------------+-----------+-----------------------------+----------------------------------------------------------------------------------------+
+| CYCLE_SENSOR_EVT_HEART_RATE_CONNECTED    | in        |                             | When a heart rate sensor is connected.                                                 |
++------------------------------------------+-----------+-----------------------------+----------------------------------------------------------------------------------------+
+| CYCLE_SENSOR_EVT_HEART_RATE_DISCONNECTED | in        |                             | When the heart rate sensor disconnected.                                               |
++------------------------------------------+-----------+-----------------------------+----------------------------------------------------------------------------------------+
+| CYCLE_SENSOR_EVT_SAW_MOBILE              | in        |                             | When the registered smartphone is seen.                                                |
++------------------------------------------+-----------+-----------------------------+----------------------------------------------------------------------------------------+
+| CYCLE_SENSOR_EVT_LOST_MOBILE             | in        |                             | When the registered smartphone went out of range.                                      |
++------------------------------------------+-----------+-----------------------------+----------------------------------------------------------------------------------------+
+| LTE_EVT_CONNECTED                        | in        |                             | Notifies that LTE is connected.                                                        |
++------------------------------------------+-----------+-----------------------------+----------------------------------------------------------------------------------------+
+| LTE_EVT_DISCONNECTED                     | in        |                             | Notifies that LTE is disconnected.                                                     |
++------------------------------------------+-----------+-----------------------------+----------------------------------------------------------------------------------------+
+| AUDIO_EVT_AUDIO                          | in        |                             | not used                                                                               |
++------------------------------------------+-----------+-----------------------------+----------------------------------------------------------------------------------------+
+| AUDIO_EVT_AUDIO_FINISHED                 | in        |                             | sent when the recording finishes                                                       |
++------------------------------------------+-----------+-----------------------------+----------------------------------------------------------------------------------------+
+| CLOUDMODULE_EVT_ICECREAM                 | in        |                             | Request to query the POI API.                                                          |
++------------------------------------------+-----------+-----------------------------+----------------------------------------------------------------------------------------+
+| CLOUDMODULE_EVT_WEATHER                  | in        |                             | Request to query the weather.                                                          |
++------------------------------------------+-----------+-----------------------------+----------------------------------------------------------------------------------------+
+| APP_MANAGER_EVT_RUNLEVEL                 | in        |                             | initialize or deinitialize the UI module based on the defined runlevel                 |
++------------------------------------------+-----------+-----------------------------+----------------------------------------------------------------------------------------+
+
+<<<
+REFS:
+- TYPE: Parent
+  VALUE: REQ-UI-000
+- TYPE: Parent
+  VALUE: REQ-UI-002
+
+[REQUIREMENT]
+UID: LLD-UI-001
+STATUS: Approved
+VERIFICATION: ManualTest
+STATEMENT: On ApplicationUserStart, initialize the display module.
+RATIONALE: None
+COMMENT: >>>
+Initialization consists of the following parts.
+
+- Initialize the hardware acceleration for rotation and format conversion.
+- Initialize the lvgl library with one drawing buffer of height 30, the display driver, a display resolution of 240 x 240 and registration of the flush function.
+- Initialize DMA for SPI transfer for faster refresh rates.
+- Initialize and configure the ST7789 display. Set rotation to 180 degrees as the display is mounted upside down.
+- Initialize all widgets which are
+
+  - background colour
+  - camera image
+  - labels for
+
+    - heart rate value
+    - speed
+
+  - debug labels for 
+
+    - IP address
+    - free SD card memory
+    - GNSS coordinates
+    - GNSS satellite count
+    - shop name, distance and bearing
+    - geofence id and transition
+
+  - icons (images)
+
+    - heart
+    - battery
+    - Bluetooth
+    - GNSS
+    - arrow for shop bearing
+    - arrow for GNSS direction
+    - ice cream
+    - LTE
+    - microphone
+    - phone
+    - rain and sun (weather)
+    - battery icon with fill rectangle 
+
+- Draw initialized widgets once
+- Send a TFT_ON event to trigger switching on the backlight.
+
+Depending on the compile flag use the font lv_font_notosans_j_16 or the lvgl default.
+<<<
+REFS:
+- TYPE: Parent
+  VALUE: HLD-UI
+
+[REQUIREMENT]
+UID: LLD-UI-002
+STATUS: Approved
+VERIFICATION: ManualTest
+STATEMENT: On receiving the ice cream shop info with name data, toggle the ice cream icon and bearing arrow accordingly.
+RATIONALE: Make the user aware of an ice cream shop nearby.
+COMMENT: The event CLOUDMODULE_EVT_ICECREAM has a parameter name. It carries data when found.
+REFS:
+- TYPE: Parent
+  VALUE: REQ-UI-010
+
+[REQUIREMENT]
+UID: LLD-UI-003
+STATUS: Approved
+VERIFICATION: ManualTest
+STATEMENT: On receiving the ice cream shop info with bearing, rotate it accordingly.
+RATIONALE: Show the direction in relation to your own bearing to find the shop.
+COMMENT: The event CLOUDMODULE_EVT_ICECREAM has a parameter bearing. This is the rotation angle as UNIT.
+REFS:
+- TYPE: Parent
+  VALUE: REQ-UI-010
+
+[REQUIREMENT]
+UID: LLD-UI-004
+STATUS: Approved
+VERIFICATION: ManualTest
+STATEMENT: On receiving weather information with rainfall greater than zero, set the rain image, else the sun image.
+RATIONALE: The rainfall is the accumulated forecast for the next hour. To make the user aware that rain is coming soon.
+COMMENT: The event CLOUDMODULE_EVT_WEATHER has a parameter rainfall. Assume sun when there is no rain. There is no icon for clouds or snow. This value is expected every full hour.
+REFS:
+- TYPE: Parent
+  VALUE: REQ-UI-013
+
+[REQUIREMENT]
+UID: LLD-UI-005
+STATUS: Approved
+VERIFICATION: ManualTest
+STATEMENT: Show the microphone image while the audio is being recorded.
+RATIONALE: To be transparent for privacy and show what the system is doing.
+COMMENT: The event AUDIO_EVT_AUDIO indicates a recording start and AUDIO_EVT_AUDIO_FINISHED end of the recording.
+REFS:
+- TYPE: Parent
+  VALUE: REQ-UI-011
+
+[REQUIREMENT]
+UID: LLD-UI-006
+STATUS: Approved
+VERIFICATION: ManualTest
+STATEMENT: Show the LTE icon while being attached to an LTE network. Show the IP address in the debug overlay.
+RATIONALE: To make the user aware that there is a/no connection to the cloud.
+COMMENT: The event LTE_EVT_CONNECTED indicates being connected and LTE_EVT_DISCONNECTED is received on connection loss.
+REFS:
+- TYPE: Parent
+  VALUE: REQ-UI-008
+- TYPE: Parent
+  VALUE: REQ-UI-014-01
+
+[REQUIREMENT]
+UID: LLD-UI-007
+STATUS: Approved
+VERIFICATION: ManualTest
+STATEMENT: Show the phone icon while the phone is nearby.
+RATIONALE: To make the user aware of the system status as this info is used for the anti-theft logic.
+COMMENT: The event CYCLE_SENSOR_EVT_SAW_MOBILE indicates that a mobile is found and CYCLE_SENSOR_EVT_LOST_MOBILE is received when sight is lost.
+REFS:
+- TYPE: Parent
+  VALUE: REQ-UI-012
+
+[REQUIREMENT]
+UID: LLD-UI-008
+STATUS: Approved
+VERIFICATION: ManualTest
+STATEMENT: Show the Bluetooth icon while the heart rate monitor is connected
+RATIONALE: To make the user aware of the system status.
+COMMENT: The event CYCLE_SENSOR_EVT_HEART_RATE_CONNECTED indicates that an HRM is found and CYCLE_SENSOR_EVT_HEART_RATE_DISCONNECTED is received when lost.
+REFS:
+- TYPE: Parent
+  VALUE: REQ-UI-007
+
+[REQUIREMENT]
+UID: LLD-UI-009
+STATUS: Approved
+VERIFICATION: ManualTest
+STATEMENT: show the heart rate image and display the reading value when receiving an HRM reading.
+RATIONALE: To give the user information.
+COMMENT: When the reading is invalid, show bars, else the reading with max. 3 digits.
+REFS:
+- TYPE: Parent
+  VALUE: REQ-UI-004
+
+[REQUIREMENT]
+UID: LLD-UI-010
+STATUS: Approved
+VERIFICATION: ManualTest
+STATEMENT: Update the battery fill indicator on a status update.
+RATIONALE: To inform the user that a battery needs to be recharged.
+COMMENT: Calculate the width of a rectangle used as fill based on the percentage. Expected every minute.
+REFS:
+- TYPE: Parent
+  VALUE: REQ-UI-003
+
+[REQUIREMENT]
+UID: LLD-UI-011
+STATUS: Approved
+VERIFICATION: ManualTest
+STATEMENT: Update the clock on a status update.
+RATIONALE: To inform the user about the time.
+COMMENT: Display is as 24 hours with minutes.
+REFS:
+- TYPE: Parent
+  VALUE: REQ-UI-006
+
+[REQUIREMENT]
+UID: LLD-UI-012
+STATUS: Approved
+VERIFICATION: ManualTest
+STATEMENT: Show the free memory of the SD card on the debug overlay on a status update.
+RATIONALE: For debugging purposes as there is no place to show this information continuously.
+REFS:
+- TYPE: Parent
+  VALUE: REQ-UI-014-02
+
+[REQUIREMENT]
+UID: LLD-UI-013
+STATUS: Approved
+VERIFICATION: ManualTest
+STATEMENT: Show the firmware version on the debug overlay on a status update.
+RATIONALE: For debugging purposes.
+REFS:
+- TYPE: Parent
+  VALUE: REQ-UI-014-06
+
+[REQUIREMENT]
+UID: LLD-UI-014
+STATUS: Approved
+VERIFICATION: ManualTest
+STATEMENT: Switch off the display when requested by an event.
+RATIONALE: To appear off when the anti-theft detection is active during a break situation.
+REFS:
+- TYPE: Parent
+  VALUE: REQ-THEFT-002
+
+[REQUIREMENT]
+UID: LLD-UI-015
+STATUS: Approved
+VERIFICATION: ManualTest
+STATEMENT: Show the latitude and longitude version on the debug overlay on the GNSS update.
+RATIONALE: For debugging purposes.
+REFS:
+- TYPE: Parent
+  VALUE: REQ-UI-014-03
+
+[REQUIREMENT]
+UID: LLD-UI-016
+STATUS: Approved
+VERIFICATION: ManualTest
+STATEMENT: Show the speed in km/h on the GNSS update.
+RATIONALE: Part of the bicycle computer functionality.
+COMMENT: Convert from m/s by multiplication with 3.6.
+REFS:
+- TYPE: Parent
+  VALUE: REQ-UI-005
+
+[REQUIREMENT]
+UID: LLD-UI-017
+STATUS: Approved
+VERIFICATION: ManualTest
+STATEMENT: Show the GNSS icon on the GNSS update with the GNSS-fix flag active.
+RATIONALE: To inform the user that GNSS has a fix.
+COMMENT: The event GNSS_EVT_POSITION provides a property fix.
+REFS:
+- TYPE: Parent
+  VALUE: REQ-UI-009
+
+[REQUIREMENT]
+UID: LLD-UI-018
+STATUS: Approved
+VERIFICATION: ManualTest
+STATEMENT: Show a rotated direction arrow accordingly on the GNSS update.
+RATIONALE: To inform the user about the direction.
+COMMENT: Rotation needs a full-color RGB image. Therefore the arrows are in RGB656 format.
+REFS:
+- TYPE: Parent
+  VALUE: REQ-UI-016
+
+[REQUIREMENT]
+UID: LLD-UI-019
+STATUS: Approved
+VERIFICATION: ManualTest
+STATEMENT: Show the id and transition on the debug overlay on the GNSS geofence update
+RATIONALE: For debugging purposes.
+COMMENT: Always overwrites the previous information, so only the most recent update is shown.
+REFS:
+- TYPE: Parent
+  VALUE: REQ-UI-014-05
+
+[REQUIREMENT]
+UID: LLD-UI-020
+STATUS: Approved
+VERIFICATION: ManualTest
+STATEMENT: Show the camera image in the correct orientation when updated by the direct function call.
+RATIONALE: Main feature of the bicycle computer.
+COMMENT: As the camera is mounted upside down, the image needs to be rotated. The colours must be swapped as the TFT expects a big endian. Use hardware acceleration for both operations.
+REFS:
+- TYPE: Parent
+  VALUE: REQ-UI-001
+
+[REQUIREMENT]
+UID: LLD-UI-021
+STATUS: Approved
+VERIFICATION: ManualTest
+STATEMENT: Flush the display content whenever updated.
+RATIONALE: Save CPU time by deactivating the high-frequency lvgl timer as there is no input handling. It is not used.
+COMMENT: Updates can be initialization, a camera image update or an update by an event.
+REFS:
+- TYPE: Parent
+  VALUE: REQ-UI-002
+
+[REQUIREMENT]
+UID: LLD-UI-022
+STATUS: Approved
+VERIFICATION: ManualTest
+STATEMENT: The display flush function pushes all pixels to the correct window of the TFT.
+RATIONALE: None
+REFS:
+- TYPE: Parent
+  VALUE: REQ-UI-002
+
+[/SECTION]

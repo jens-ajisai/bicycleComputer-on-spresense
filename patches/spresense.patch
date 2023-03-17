@@ -1,0 +1,98 @@
+diff --git a/sdk/modules/audio/components/capture/capture_component.cpp b/sdk/modules/audio/components/capture/capture_component.cpp
+index ea8a644b..a8c36143 100644
+--- a/sdk/modules/audio/components/capture/capture_component.cpp
++++ b/sdk/modules/audio/components/capture/capture_component.cpp
+@@ -399,7 +399,10 @@ bool AS_CreateCapture(FAR AsCreateCaptureParam_t *param)
+     }
+ 
+   pthread_setname_np(s_capture_pid[0], "capture0");
+-
++#ifdef CONFIG_SMP
++    cpu_set_t cpuset = 1 << 2;
++    pthread_setaffinity_np(s_capture_pid[0], sizeof(cpu_set_t), &cpuset);
++#endif  
+   /* dev1 setting */
+ 
+   if (dev1_self_dtq != 0xFF || dev1_self_sync_dtq != 0xFF)
+diff --git a/sdk/modules/audio/components/customproc/Make.defs b/sdk/modules/audio/components/customproc/Make.defs
+index fd73fa95..dcd89d64 100644
+--- a/sdk/modules/audio/components/customproc/Make.defs
++++ b/sdk/modules/audio/components/customproc/Make.defs
+@@ -33,6 +33,14 @@
+ #
+ ############################################################################
+ 
++ifeq ($(CONFIG_AUDIOUTILS_MFE),y)
++
++CXXSRCS += thruproc_component.cpp
++VPATH   += components/customproc
++DEPPATH += --dep-path components/customproc
++
++endif
++
+ ifeq ($(CONFIG_AUDIOUTILS_CUSTOMPROC),y)
+ 
+ CXXSRCS += usercustom_component.cpp thruproc_component.cpp
+diff --git a/sdk/modules/audio/objects/front_end/front_end_obj.cpp b/sdk/modules/audio/objects/front_end/front_end_obj.cpp
+index f5406142..8c83a5b8 100644
+--- a/sdk/modules/audio/objects/front_end/front_end_obj.cpp
++++ b/sdk/modules/audio/objects/front_end/front_end_obj.cpp
+@@ -468,22 +468,22 @@ uint32_t MicFrontEndObject::loadComponent(AsMicFrontendPreProcType type, char *d
+ {
+   /* Create component */
+ 
+-  switch (type)
+-    {
+-      case AsMicFrontendPreProcUserCustom:
+-        m_p_preproc_instance = new UserCustomComponent(m_pool_id.cmp,
+-                                                       m_msgq_id.cmp);
+-        break;
+-
+-      case AsMicFrontendPreProcSrc:
+-        m_p_preproc_instance = new SRCComponent(m_pool_id.cmp,
+-                                                m_msgq_id.cmp);
+-        break;
+-
+-      default:
++//  switch (type)
++//    {
++//      case AsMicFrontendPreProcUserCustom:
++//        m_p_preproc_instance = new UserCustomComponent(m_pool_id.cmp,
++//                                                       m_msgq_id.cmp);
++//        break;
++//
++//      case AsMicFrontendPreProcSrc:
++//        m_p_preproc_instance = new SRCComponent(m_pool_id.cmp,
++//                                                m_msgq_id.cmp);
++//        break;
++//
++//      default:
+         m_p_preproc_instance = new ThruProcComponent();
+-        break;
+-    }
++//        break;
++//    }
+ 
+   if (m_p_preproc_instance == NULL)
+     {
+@@ -1548,6 +1548,7 @@ bool MicFrontEndObject::sendData(AsPcmDataParam& data)
+ 
+       if (CMN_SimpleFifoGetVacantSize(m_pcm_data_dest.simple_fifo_handler) < data.size)
+         {
++          printf("SIMPLE_FIFO_OVERFLOW %d < %d\n", CMN_SimpleFifoGetOccupiedSize(m_pcm_data_dest.simple_fifo_handler), data.size);
+           MIC_FRONTEND_ERR(AS_ATTENTION_SUB_CODE_SIMPLE_FIFO_OVERFLOW);
+           return false;
+         }
+diff --git a/sdk/tools/flash.sh b/sdk/tools/flash.sh
+index 724e0833..08ea40a0 100755
+--- a/sdk/tools/flash.sh
++++ b/sdk/tools/flash.sh
+@@ -112,6 +112,8 @@ do
+ 	esac
+ done
+ 
++UART_BAUDRATE="230400"
++
+ # Shift argument position after option
+ shift $(($OPTIND - 1))
+ 

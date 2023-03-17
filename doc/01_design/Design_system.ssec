@@ -1,0 +1,253 @@
+[FRAGMENT]
+
+[SECTION]
+TITLE: App Manager Design
+
+[REQUIREMENT]
+UID: HLD-SYSTEM
+STATUS: Approved
+VERIFICATION: Review
+STATEMENT: High-Level Design - Interfaces
+RATIONALE: None
+COMMENT: >>>
+
+Event-based Interface provided by App Manager Module
+
++--------------------------+-----------+----------------------------+----------------------------------------------------------------------------------------+
+| Event                    | Direction | Parameter                  | Description                                                                            |
++==========================+===========+============================+========================================================================================+
+| APP_MANAGER_EVT_RUNLEVEL | in        | state, connection          | initialize or deinitialize the MQTT module based on the defined runlevel               |
++--------------------------+-----------+----------------------------+----------------------------------------------------------------------------------------+
+
+Event-based Interface used by App Manager Module
+
+
+
+<<<
+REFS:
+- TYPE: Parent
+  VALUE: REQ-REMOTE-001
+- TYPE: Parent
+  VALUE: REQ-REMOTE-002
+
+[REQUIREMENT]
+UID: LLD-SYSTEM-001
+STATUS: Approved
+VERIFICATION: Review
+STATEMENT: The lifecycle of the modules shall be managed by the module App Manager and be implemented according to the state machine below.
+RATIONALE: To save power modules shall only be active when in use.
+COMMENT: >>>
+.. image:: appStates.png
+   :alt: System States and active Modules
+
+* On state, change send the change by the event APP_MANAGER_EVT_RUNLEVEL. All modules know on which state they shall initialize and react accordingly.
+* Set the clock speed according to the state
+<<<
+REFS:
+- TYPE: Parent
+  VALUE: REQ-SYSTEM-010
+
+[REQUIREMENT]
+UID: LLD-SYSTEM-002
+STATUS: Approved
+VERIFICATION: AutomaticTest
+STATEMENT: App Manager initializes all modules.
+RATIONALE: The app Manager manages the whole application so that there is no initialization in main.
+COMMENT: >>>
+* Initialize Low Power, SD Card, System Time
+* Call begin of all modules so that they start listening for state changes.
+<<<
+REFS:
+- TYPE: Parent
+  VALUE: REQ-SYSTEM-010
+
+[REQUIREMENT]
+UID: LLD-SYSTEM-003
+STATUS: Approved
+VERIFICATION: AutomaticTest
+STATEMENT: Print the boot cause at startup.
+RATIONALE: This is for debugging to know if there is a pin that triggered wake up from cold sleep, a power cycle or a crash.
+REFS:
+- TYPE: Parent
+  VALUE: REQ-DEV-009
+
+[REQUIREMENT]
+UID: LLD-SYSTEM-004
+STATUS: Approved
+VERIFICATION: AutomaticTest
+STATEMENT: A serial shell can publish all events of all modules including all parameters.
+RATIONALE: This is used for testing and debugging.
+COMMENT: >>>
+Commands to start/stop modules
+
+=================== ===========
+Command             Explanation
+=================== ===========
+appManager_begin
+appManager_end
+audio_begin
+audio_end
+camera_begin
+camera_end
+cloud_begin
+cloud_end
+cycle_begin
+cycle_end
+globalStatus_begin
+globalStatus_end
+gnss_begin
+gnss_end
+imu_begin
+imu_end
+lte_begin
+lte_end
+mqtt_begin
+mqtt_end
+uiButton_begin
+uiButton_end
+uitft_begin
+uitft_end
+=================== ===========
+
+Commands to publish events
+
+========================================================================== =========== ===========
+Command                                                                    Parameter   Explanation
+========================================================================== =========== ===========
+publish_appManagerRunlevel 2 1
+publish_audioAudio
+publish_audioError
+publish_audioGetAudio 3
+publish_cameraError
+publish_cameraRequestImage
+publish_cloudError
+publish_cloudGetIceCream
+publish_cloudGetWeather
+publish_cloudIceCream shop 1.3 46.4
+publish_cloudWeather 0.4
+publish_cycleHeartLostMobile
+publish_cycleHeartRate 90
+publish_cycleHeartRateConnected
+publish_cycleHeartRateDisconnected
+publish_cycleHeartSawMobile
+publish_globalStatusTestBatteryPercentage
+publish_globalStatusTestMemory
+publish_globalStatusTestStatusJson
+publish_globalStatusUpdate 80 1 1 4563217 40.746 139.456 12.4 1 1 23 234 1
+publish_gnssDelGeoFence 1
+publish_gnssDelGeoFenceCurrentLocation
+publish_gnssError
+publish_gnssGeoFenceTransition 2 1
+publish_gnssPosition 35.681166768461296 119.76643039925418 12.4 2.1 1
+publish_gnssSetGeoFence 40.746 139.456 400 1
+publish_gnssSetGeoFenceCurrentLocation
+publish_gnssStart
+publish_gnssStop
+publish_imuError
+publish_imuFall
+publish_imuMoved
+publish_imuOrientation
+publish_imuStill
+publish_lteConnected 816316417
+publish_lteDisconnected
+publish_lteError
+publish_mqttError
+publish_mqttRecv 2 test
+publish_mqttSend 2 test
+publish_uiButtonPressed
+publish_uiButtonReleased
+publish_uitftMsgBox testString
+publish_uitftOff
+publish_uitftOn
+========================================================================== =========== ===========
+
+Other commands
+
+======================= ===========
+Command                 Explanation
+======================= ===========
+id
+test_shell echo
+startUsbMsc
+stopUsbMsc
+printFile
+listDirectory
+nsh
+registerAllModules
+unregisterAllModules
+camera_streamSleep 100
+cycle_deletePairing
+======================= ===========
+
+The source code is organized in files per module.
+
+<<<
+REFS:
+- TYPE: Parent
+  VALUE: REQ-DEV-003
+
+[REQUIREMENT]
+UID: LLD-SYSTEM-005
+STATUS: Approved
+VERIFICATION: AutomaticTest
+STATEMENT: A serial shell can switch USB MSC mode on/off.
+RATIONALE: The SD card can be read without removing it from the device.
+COMMENT: The application cannot access the SD card in USB MSC mode as it is exclusively available for the connected PC. Therefore create a possibility to switch between the modes for convenience.
+REFS:
+- TYPE: Parent
+  VALUE: REQ-SYSTEM-009
+
+[REQUIREMENT]
+UID: LLD-SYSTEM-006
+STATUS: Approved
+VERIFICATION: Review
+STATEMENT: The NSH shell is off by default but can be activated by compile switch.
+RATIONALE: NSH shell brings some features for debugging. However, it does not work after calling Serial.begin(). That means the application shell and logging must be deactivated.
+COMMENT: The application shell and logging are far more important.
+REFS:
+- TYPE: Parent
+  VALUE: REQ-DEV-010
+
+[REQUIREMENT]
+UID: LLD-SYSTEM-007
+STATUS: Approved
+VERIFICATION: AutomaticTest
+STATEMENT: The shell offers an echo command.
+RATIONALE: To test the shells functionality.
+REFS:
+- TYPE: Parent
+  VALUE: REQ-DEV-003
+
+[REQUIREMENT]
+UID: LLD-SYSTEM-008
+STATUS: Approved
+VERIFICATION: AutomaticTest
+STATEMENT: The shell can print the build date.
+RATIONALE: This is for debugging only.
+REFS:
+- TYPE: Parent
+  VALUE: REQ-DEV-011
+
+[REQUIREMENT]
+UID: LLD-SYSTEM-009
+STATUS: Approved
+VERIFICATION: Review
+STATEMENT: A logging module can filter log messages by configuration during build time.
+RATIONALE: Too many log messages make the log messy and messages could be even dropped. However, for debugging issues high detail of certain modules is required. Therefore provide a mechanism to control log granularity per module.
+COMMENT: It is controlled by a preprocessor define during the build to reduce the flash memory consumption as many strings occupy flash. Spresense copies the whole program into SRAM. Therefore log messages consume SRAM too.
+REFS:
+- TYPE: Parent
+  VALUE: REQ-DEV-001
+
+[REQUIREMENT]
+UID: LLD-SYSTEM-010
+STATUS: Approved
+VERIFICATION: AutomaticTest
+STATEMENT: A logging module adds a prefix with the timestamp and log level.
+RATIONALE: A timestamp improves finding the location of interest and contributes to the program execution analysis. Log levels support the filtering of log files later on.
+COMMENT: This is standard for logging.
+REFS:
+- TYPE: Parent
+  VALUE: REQ-DEV-001
+
+[/SECTION]

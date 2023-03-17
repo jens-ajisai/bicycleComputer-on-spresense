@@ -1,0 +1,253 @@
+[FRAGMENT]
+
+[SECTION]
+TITLE: Design
+
+[SECTION]
+TITLE: Hardware Architecture
+
+[REQUIREMENT]
+UID: HLD-SYSTEM-HW-001
+STATUS: Approved
+VERIFICATION: Review
+STATEMENT: Diagram of all hardware components and their connections.
+RATIONALE: None
+COMMENT: >>>
+.. image:: bike-cam-schematic-hardware.drawio.png
+   :alt: Hardware Schematic Drawing for Bike Cam
+
+Hardware parts
+
+- **Spresense main board**.
+- **Spresense LTE extension board** to add network connectivity, interface SD card, audio, 3.3V display, USB MSC and a user button.
+- **Spresense Camera board** to capture an image stream.
+- **Seedstudio XIAO BLE** to add BLE connectivity.
+- **External GNSS antenna** to increase sensitivity for GNSS signals.
+- **Li-Ion Battery** to be independent of mains power.
+- **10-DOF IMU** to detect motion and wakeup. Via a level shifter.
+- **TFT LCD** for visual user feedback
+- **Analog Microphone** to capture audio.
+
+Includes a battery to satisfy REQ-SYSTEM-001.
+Includes a solar panel and IC to satisfy REQ-SYSTEM-002
+Includes a GNSS with geofence REQ-THEFT-001-01
+<<<
+REFS:
+- TYPE: Parent
+  VALUE: REQ-DEV-012
+
+[REQUIREMENT]
+UID: HLD-SYSTEM-HW-002
+STATUS: Approved
+VERIFICATION: Design
+STATEMENT: Power Supply to run on a battery chargeable by a solar panel.
+RATIONALE: None
+COMMENT: >>>
+-  A li-ion battery is used as a power supply.
+-  As the Spresense board does not have any charging circuit, a solar charger board is added.
+-  A solar panel is attached to the solar charger.
+<<<
+REFS:
+- TYPE: Parent
+  VALUE: REQ-SYSTEM-002
+
+[/SECTION]
+
+[SECTION]
+TITLE: Software Architecture
+
+[REQUIREMENT]
+UID: HLD-SYSTEM-SW-001
+STATUS: Approved
+VERIFICATION: Review
+STATEMENT: Software Components Diagram.
+RATIONALE: None
+COMMENT: >>>
+
+.. image:: bike-cam-schematic-software.drawio.png
+   :alt: Software Schematic Drawing for Bike Cam
+
+<<<
+REFS:
+- TYPE: Parent
+  VALUE: REQ-DEV-012
+
+[REQUIREMENT]
+UID: HLD-SYSTEM-SW-002
+STATUS: Approved
+VERIFICATION: Design
+STATEMENT: Multi-Core Usage
+RATIONALE: None
+COMMENT: >>>
+
+-  All modules run on the main core. Distribution over asynchronously running sub-cores has been removed due to
+
+   -  the additional complexity of synchronization and out of that resulting instability
+   -  the additional memory usage due to assigning 128KB memory tiles and duplicated program code
+   -  the restrictions imposed by Spresense that multiple modules do not work on sub cores
+
+-  ASMP is used for encoding the audio stream. The typical use case for ASMP is to move computationally demanding algorithms of a data stream to sub-cores.
+-  Try activating SMP in NuttX and pinning dedicated threads to sub-cores after the system is stable and tested
+-  Threads shall be used to prevent synchronous calls on slow resources like networks or SD cards to block the main thread. Also to prevent computation expensive calculations from blocking the main thread.
+
+<<<
+REFS:
+- TYPE: Parent
+  VALUE: REQ-DEV-012
+
+[REQUIREMENT]
+UID: HLD-SYSTEM-SW-003
+STATUS: Approved
+VERIFICATION: Design
+STATEMENT: Application lifecycle
+RATIONALE: None
+COMMENT: >>>
+
+-  The lifecycle is controlled by the App Manager. Each module registers with the App Manager’s events and inits or deinits itself on the app state defined in each module’s header file. There are mainly 3 stages
+
+   -  Always running modules providing base functionality like BLE, LTE or GNSS to do anti-theft detection.
+   -  UI-related modules like camera and display that interact with the user.
+   -  Modules demanding high resources like Audio.
+
+-  After a 5 minutes timeout of no movement, the system goes into deep sleep waiting for an interrupt from the accelerometer.
+-  At startup debugging functionality like logging and the serial shell is set up, then all modules register with the App Manager and the App Manager is raising the App state based on the modules' feedback.
+
+<<<
+REFS:
+- TYPE: Parent
+  VALUE: REQ-DEV-012
+
+[REQUIREMENT]
+UID: HLD-SYSTEM-SW-004
+STATUS: Approved
+VERIFICATION: Design
+STATEMENT: Event-driven Program Flow
+RATIONALE: None
+COMMENT: >>>
+
+-  Modules communicate with each other via events that define their parameters.
+-  Events are dispatched in an event queue that processes the events on the main loop one by one. Modules can start their threads to handle their business logic in the background.
+-  A few exceptions where a large amount of memory is involved like camera images or audio data use synchronous direct function calls into other modules to avoid copying this memory.
+
+<<<
+REFS:
+- TYPE: Parent
+  VALUE: REQ-SYSTEM-007
+
+[REQUIREMENT]
+UID: HLD-SYSTEM-SW-005
+STATUS: Approved
+VERIFICATION: Review
+STATEMENT: Memory Usage
+RATIONALE: None
+COMMENT: >>>
+
+-  The executable binary must be copied into RAM. Therefore avoid unnecessarily high amounts of reserved memory like stack sizes, buffers, static arrays, and font glyphs. High consumers are
+
+   -  Audio buffers both on separate memory tiles and in the main program
+   -  Audio encoders on sub-cores
+   -  Images taken by the camera based on JPEG compression ratio
+   -  Icons drawn by LVGL
+   -  Glyphs drawn by LVGL
+   -  Network-related buffers for MQTT, LTE, UART, BLE
+   -  Stack Sizes for threads.
+   -  Executable binaries for sub-cores
+
+<<<
+REFS:
+- TYPE: Parent
+  VALUE: REQ-DEV-012
+
+[REQUIREMENT]
+UID: HLD-SYSTEM-SW-006
+STATUS: Approved
+VERIFICATION: Review
+STATEMENT: Configuration and Persistence
+RATIONALE: None
+COMMENT: >>>
+
+-  A config.h file provides stack sizes, pin configurations, default values like for JPEG quality, flags like for the nsh shell or build flags like for including the Japanese font.
+-  A secrets.h file provides credentials for the cloud APIs, coordinates for the home and the phone's IRK and BLE mac address.
+-  A my_log.h file provides log-level configuration for each module.
+-  An SD card provides certificates for cloud connections like Amazon IoT, and stores LTK/IRK for secure BLE connections.
+-  GNSS satellite ephemeris data is stored in flash memory.
+
+<<<
+REFS:
+- TYPE: Parent
+  VALUE: REQ-DEV-012
+
+[REQUIREMENT]
+UID: HLD-SYSTEM-SW-007
+STATUS: Approved
+VERIFICATION: Design
+STATEMENT: Connectivity
+RATIONALE: None
+COMMENT: >>>
+
+-  LTE-M Cat.1 connectivity is added via the LTE Extension Board. Available drivers from the Spresense (Arduino) SDK are used,
+
+   -  Remote connection is established via MQTT as the device does not have a remotely accessible IP address.
+
+-  BLE connectivity is added via a custom nRF52840 BLE HCI-H4 sample-based firmware on the XIAO BLE board connected with UART.
+-  GNSS is enhanced by an external antenna. Emergency information from the Michibiki satellite can be decoded.
+-  Logging is done via a USB-CDC Serial Console.
+-  USB MSC mode can be switched on by request as the program cannot access the SD card while USB MSC is active.
+
+<<<
+REFS:
+- TYPE: Parent
+  VALUE: REQ-DEV-012
+
+[REQUIREMENT]
+UID: HLD-SYSTEM-SW-008
+STATUS: Approved
+VERIFICATION: Design
+STATEMENT: Multimedia & UI
+RATIONALE: None
+COMMENT: >>>
+
+-  A camera board take a stream of images,
+-  which are displayed together with other information like GNSS, bicycle sensors or cloud information.
+-  Audio can be recorded by an analogue microphone.
+
+<<<
+REFS:
+- TYPE: Parent
+  VALUE: REQ-DEV-012
+
+[REQUIREMENT]
+UID: HLD-SYSTEM-SW-009
+STATUS: Approved
+VERIFICATION: AutomaticTest
+STATEMENT: Debugging and Testing
+RATIONALE: None
+COMMENT: >>>
+
+-  A serial shell can issue any event with given parameters to trigger the behaviour of the program
+-  Another serial shell logs messages which can be used for verification.
+-  An external test framework with access to these serial shells will execute test cases automatically.
+
+<<<
+REFS:
+- TYPE: Parent
+  VALUE: REQ-DEV-012
+
+[REQUIREMENT]
+UID: HLD-SYSTEM-SW-010
+STATUS: Approved
+VERIFICATION: Design
+STATEMENT: Low Power
+RATIONALE: None
+COMMENT: >>>
+
+-  To extend battery life, the system can go into a deep sleep and switch the display background light off.
+
+<<<
+REFS:
+- TYPE: Parent
+  VALUE: REQ-DEV-012
+
+[/SECTION]
+
+[/SECTION]

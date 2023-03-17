@@ -1,0 +1,50 @@
+@startuml
+
+title System States and active Modules
+
+state "State Name" as StateName
+StateName : On Enter: Activate Modules
+StateName : On Exit: Deactivate Modules
+
+state "Cold Sleep" as DeviceColdSleep {
+  state "Cold Sleep" as ApplicationColdSleep
+}
+
+state "Active" as DeviceActive {
+  state "User Start" as ApplicationUserStart
+  state "User Multimedia" as ApplicationUserMultimedia
+  state "System Start" as ApplicationSystemStart
+}
+
+DeviceColdSleep : 8 MHz
+DeviceColdSleep : Power off 
+DeviceColdSleep : UART, SD Card, BLE, Dißsplay, Camera
+
+DeviceActive : 32 MHz (auto switch to 156 Mhz)
+DeviceActive : Power on 
+DeviceActive : UART, SD Card, BLE, Display, Camera
+
+[*] -> ApplicationColdSleep
+ApplicationColdSleep -right-> ApplicationSystemStart : movement detected
+ApplicationSystemStart -right-> ApplicationUserStart : smartphone detected or long press
+ApplicationUserStart -right-> ApplicationUserMultimedia : short press
+ApplicationUserMultimedia -left-> ApplicationUserStart : short press
+ApplicationUserStart -left-> ApplicationSystemStart : smartphone lost or long press
+ApplicationSystemStart -left-> ApplicationColdSleep : 5 min no movement
+
+ApplicationColdSleep : Imu
+ApplicationSystemStart : GNSS
+ApplicationSystemStart : LTE
+ApplicationSystemStart : MQTT
+ApplicationSystemStart : Global Status
+ApplicationSystemStart : Button
+ApplicationSystemStart : BLE
+
+ApplicationUserStart : TFT
+ApplicationUserStart : CLOUD
+ApplicationUserStart : LED
+ApplicationUserStart : Camera
+
+ApplicationUserMultimedia : Audio
+
+@enduml

@@ -1,0 +1,156 @@
+[FRAGMENT]
+
+[SECTION]
+TITLE: LTE Design
+
+[REQUIREMENT]
+UID: HLD-LTE
+STATUS: Approved
+VERIFICATION: Review
+STATEMENT: High-Level Design - Interfaces
+RATIONALE: None
+COMMENT: >>>
+
+Event-based Interface provided by LTE Module
+
++----------------------+-----------+------------+------------------------------------------------+
+| Event                | Direction | Parameter  | Description                                    |
++======================+===========+============+================================================+
+| LTE_EVT_CONNECTED    | out       |            | Notifies that LTE is connected.                |
++----------------------+-----------+------------+------------------------------------------------+
+| LTE_EVT_DISCONNECTED | out       |            | Notifies that LTE is disconnected.             |
++----------------------+-----------+------------+------------------------------------------------+
+| LTE_EVT_IP           | out       | ip address | Notifies the IP address of the LTE connection. |
++----------------------+-----------+------------+------------------------------------------------+
+| LTE_EVT_ERROR        | out       |            | On error.                                      |
++----------------------+-----------+------------+------------------------------------------------+
+
+Event-based Interface used by LTE Module
+
++--------------------------+-----------+-----------------------+----------------------------------------------------------------------------------------+
+| Event                    | Direction | Parameter             | Description                                                                            |
++==========================+===========+=======================+========================================================================================+
+| APP_MANAGER_EVT_RUNLEVEL | in        | state, connection     | initialize or deinitialize the LTE module based on the defined runlevel                |
++--------------------------+-----------+-----------------------+----------------------------------------------------------------------------------------+
+
+<<<
+REFS:
+- TYPE: Parent
+  VALUE: REQ-UI-009
+- TYPE: Parent
+  VALUE: REQ-UI-014-03
+
+[REQUIREMENT]
+UID: LLD-LTE-001
+STATUS: Approved
+VERIFICATION: AutomaticTest
+STATEMENT: When receiving ApplicationSystemStart, initialize the LTE module and connect to Soracom APN.
+RATIONALE: LTE connection enables cloud augmentation and remote management by MQTT.
+COMMENT: The APN is "soracom.io", name and password are "sora".
+REFS:
+- TYPE: Parent
+  VALUE: REQ-REMOTE-001
+
+[REQUIREMENT]
+UID: LLD-LTE-002
+STATUS: Approved
+VERIFICATION: ManualTest
+STATEMENT: When the connection is lost, reconnect to LTE. 
+RATIONALE: LTE is a prerequisite for other functions to work. It might be lost due to external interference. Try to reconnect in those cases.
+COMMENT: As there is no callback, check every 60 seconds in a separate thread if the LTE status is still ready (which means connected).
+REFS:
+- TYPE: Parent
+  VALUE: REQ-REMOTE-001
+
+[REQUIREMENT]
+UID: LLD-LTE-003
+STATUS: New
+VERIFICATION: Review
+STATEMENT: Apply energy-saving parameters for eDRX and PSM.
+RATIONALE: As we are running on battery low-power LTE settings are important because we are always connected while active.
+COMMENT: >>>
+Try the following configuration. Modem wake-up every 655.36 seconds (LTE_EDRX_CYC_65536), paging time window of 2.56 seconds (LTE_EDRX_PTW_256). Active time after attachment until going idle of 1 min (LTE_PSM_T3324_UNIT_1MIN) and periodic Tracking Area Update (TAU) of 1 hour (LTE_PSM_T3412_UNIT_1HOUR).
+
+It does not make sense to set both.
+
+See https://www.sierrawireless.com/iot-blog/edrx-lpwa/ for an understanding and use case.
+<<<
+REFS:
+- TYPE: Parent
+  VALUE: REQ-SYSTEM-006
+
+[COMPOSITE_REQUIREMENT]
+UID: LLD-LTE-004
+STATUS: Approved
+VERIFICATION: AutomaticTest
+STATEMENT: Notify the system of LTE state changes.
+RATIONALE: The modules using LTE need to know if it is available to avoid unnecessary trial and error.
+REFS:
+- TYPE: Parent
+  VALUE: REQ-UI-008
+
+[REQUIREMENT]
+UID: LLD-LTE-004-01
+STATUS: Approved
+VERIFICATION: AutomaticTest
+STATEMENT: When connected, send LTE_EVT_CONNECTED.
+RATIONALE: None
+REFS:
+- TYPE: Parent
+  VALUE: LLD-LTE-004
+
+[REQUIREMENT]
+UID: LLD-LTE-004-02
+STATUS: Approved
+VERIFICATION: ManualTest
+STATEMENT: When connected, switch on LED_APP.
+RATIONALE: None
+REFS:
+- TYPE: Parent
+  VALUE: REQ-DEV-004
+
+[REQUIREMENT]
+UID: LLD-LTE-004-03
+STATUS: Approved
+VERIFICATION: AutomaticTest
+STATEMENT: When disconnected, send LTE_EVT_DISCONNECTED.
+RATIONALE: None
+REFS:
+- TYPE: Parent
+  VALUE: LLD-LTE-004
+
+[REQUIREMENT]
+UID: LLD-LTE-004-04
+STATUS: Approved
+VERIFICATION: ManualTest
+STATEMENT: When disconnected, switch off LED_APP.
+RATIONALE: None
+REFS:
+- TYPE: Parent
+  VALUE: REQ-DEV-004
+
+[REQUIREMENT]
+UID: LLD-LTE-004-05
+STATUS: Approved
+VERIFICATION: AutomaticTest
+STATEMENT: When connected, obtain and send the IP address by LTE_EVT_IP.
+RATIONALE: None
+REFS:
+- TYPE: Parent
+  VALUE: REQ-UI-014-01
+
+[/COMPOSITE_REQUIREMENT]
+
+[REQUIREMENT]
+UID: LLD-LTE-005
+STATUS: Approved
+VERIFICATION: AutomaticTest
+STATEMENT: When attached, obtain the time and set the RTC.
+RATIONALE: The LTE time is used to improve the LTE fix.
+REFS:
+- TYPE: Parent
+  VALUE: REQ-UI-006
+- TYPE: Parent
+  VALUE: HLD-LTE
+
+[/SECTION]

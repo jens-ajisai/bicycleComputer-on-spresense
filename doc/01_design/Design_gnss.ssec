@@ -1,0 +1,192 @@
+[FRAGMENT]
+
+[SECTION]
+TITLE: GNSS Design
+
+[REQUIREMENT]
+UID: HLD-GNSS
+STATUS: Approved
+VERIFICATION: Review
+STATEMENT: High-Level Design - Interfaces
+RATIONALE: None
+COMMENT: >>>
+Do a hot start.
+
+Event-based Interface provided by GNSS Module
+
++-----------------------------------------+-----------+------------------------------------------------------+--------------------------------------------------+
+| Event                                   | Direction | Parameter                                            | Description                                      |
++=========================================+===========+======================================================+==================================================+
+| GNSS_EVT_POSITION                       | out       | lat, lng, fix, speed, direction                       | Nofitifaction of current position update.       |
++-----------------------------------------+-----------+------------------------------------------------------+--------------------------------------------------+
+| GNSS_EVT_SET_GEO_FENCE                  | in        | id, lat, lng, radius                                 | Request to create a new geo fence at {lat}       |
++-----------------------------------------+-----------+------------------------------------------------------+--------------------------------------------------+
+| GNSS_EVT_SET_GEO_FENCE_CURRENT_LOCATION | in        | id, lat, lng, radius                                 | Request to create a new geo fence at {lat}       |
++-----------------------------------------+-----------+------------------------------------------------------+--------------------------------------------------+
+| GNSS_EVT_DEL_GEO_FENCE                  | in        | id                                                   | Request to delete a geofence for {id}            |
++-----------------------------------------+-----------+------------------------------------------------------+--------------------------------------------------+
+| GNSS_EVT_DEL_GEO_FENCE_CURRENT_LOCATION | in        |                                                      | Req to delete a geofence for id current location |
++-----------------------------------------+-----------+------------------------------------------------------+--------------------------------------------------+
+| GNSS_EVT_GEO_FENCE                      | out       | id, transition                                       | Notification of a geo fence {transiton} for {id} |
++-----------------------------------------+-----------+------------------------------------------------------+--------------------------------------------------+
+| GNSS_EVT_START                          | in        |                                                      | Request to initialize the GNSS module.           |
++-----------------------------------------+-----------+------------------------------------------------------+--------------------------------------------------+
+| GNSS_EVT_STOP                           | in        |                                                      |  Request to deinitialize the GNSS module.        |
++-----------------------------------------+-----------+------------------------------------------------------+--------------------------------------------------+
+| GNSS_EVT_ERROR                          | out       |                                                      | On error.                                        |
++-----------------------------------------+-----------+------------------------------------------------------+--------------------------------------------------+
+
+Event-based Interface used by GNSS Module
+
++--------------------------+-----------+-----------------------+----------------------------------------------------------------------------------------+
+| Event                    | Direction | Parameter             | Description                                                                            |
++==========================+===========+=======================+========================================================================================+
+| APP_MANAGER_EVT_RUNLEVEL | in        | state, connection     | initialize or deinitialize the GNSS module based on the defined runlevel               |
++--------------------------+-----------+-----------------------+----------------------------------------------------------------------------------------+
+
+<<<
+REFS:
+- TYPE: Parent
+  VALUE: REQ-UI-009
+- TYPE: Parent
+  VALUE: REQ-UI-014-03
+
+[REQUIREMENT]
+UID: LLD-GNSS-001
+STATUS: Approved
+VERIFICATION: ManualTest
+STATEMENT: When receiving ApplicationSystemStart with the LTE connected, initialize the GNSS module. Start a poll thread checking every 1.1 seconds.
+RATIONALE: The LTE time is used for a hot start. Since signals trigger sockets listeners to return an error, remove signals usage from the GNSS library and poll.
+COMMENT: >>>
+Select the satellites GPS, GALILEO, QZ_L1CA and QZ_L1S.
+Set the GNSS time using the RTC which was set by the LTE module before.
+Try a hot start and on failure retry with a cold start.
+<<<
+REFS:
+- TYPE: Parent
+  VALUE: REQ-UI-009
+- TYPE: Parent
+  VALUE: REQ-UI-014-03
+
+[REQUIREMENT]
+UID: LLD-GNSS-002
+STATUS: Approved
+VERIFICATION: ManualTest
+STATEMENT: After initializing the GNSS module set up a geofence with the home coordinates and radius.
+RATIONALE: The home is always fixed and should be set up.
+COMMENT: The coordinates are expected to be saved in the config.h
+REFS:
+- TYPE: Parent
+  VALUE: REQ-THEFT-001-01
+
+[REQUIREMENT]
+UID: LLD-GNSS-003
+STATUS: Approved
+VERIFICATION: ManualTest
+STATEMENT: After initializing the GNSS module, start a poll thread for the geofence events arriving via file descriptor to convert them to application events.
+RATIONALE: Waiting for geofence events shall be non-blocking.
+REFS:
+- TYPE: Parent
+  VALUE: REQ-THEFT-001-01
+- TYPE: Parent
+  VALUE: REQ-UI-014-05
+
+[REQUIREMENT]
+UID: LLD-GNSS-004
+STATUS: Approved
+VERIFICATION: AutomaticTest
+STATEMENT: Log satellite information every minute.
+RATIONALE: To observe progress as getting a fix from a cold start can take very long, especially when satellites have bad sight.
+REFS:
+- TYPE: Parent
+  VALUE: REQ-DEV-001
+
+[REQUIREMENT]
+UID: LLD-GNSS-005
+STATUS: Approved
+VERIFICATION: AutomaticTest
+STATEMENT: When the GNSS module reports a position with a fix, switch on the LED_FIX.
+RATIONALE: To visually see the status when there is no display available.
+REFS:
+- TYPE: Parent
+  VALUE: REQ-DEV-004
+
+[REQUIREMENT]
+UID: LLD-GNSS-006
+STATUS: Approved
+VERIFICATION: AutomaticTest
+STATEMENT: When the GNSS module reports a position with a fix, save the ephemeris data once for the first report.
+RATIONALE: Save data for a hot start. To protect from flash wear out, do this only for the first fix to have the data in case of an unclean shutdown.
+REFS:
+- TYPE: Parent
+  VALUE: HLD-GNSS
+
+[REQUIREMENT]
+UID: LLD-GNSS-007
+STATUS: Approved
+VERIFICATION: AutomaticTest
+STATEMENT: When the GNSS module reports a position with a fix, send the data via event for other modules.
+RATIONALE: Global data saves the position and MQTT sends it to the cloud.
+REFS:
+- TYPE: Parent
+  VALUE: REQ-UI-014-03
+
+[REQUIREMENT]
+UID: LLD-GNSS-008
+STATUS: Approved
+VERIFICATION: AutomaticTest
+STATEMENT: When the GNSS module reports a position without a fix, send the location from the GNSS history once via event.
+RATIONALE: Global data saves the position and MQTT sends it to the cloud.
+REFS:
+- TYPE: Parent
+  VALUE: REQ-UI-014-03
+
+[REQUIREMENT]
+UID: LLD-GNSS-009
+STATUS: Approved
+VERIFICATION: AutomaticTest
+STATEMENT: GNSS module provides an interface to manually stop via events.
+RATIONALE: Used by the shell module for debugging purposes.
+REFS:
+- TYPE: Parent
+  VALUE: REQ-DEV-007
+
+[REQUIREMENT]
+UID: LLD-GNSS-010
+STATUS: Approved
+VERIFICATION: AutomaticTest
+STATEMENT: GNSS module provides an interface to manually start via events.
+RATIONALE: Used by the shell module. There shall be no error if it was already active and the command ignored.
+REFS:
+- TYPE: Parent
+  VALUE: REQ-DEV-007
+
+[REQUIREMENT]
+UID: LLD-GNSS-011
+STATUS: Approved
+VERIFICATION: ManualTest
+STATEMENT: GNSS module provides an interface to register a new geofence with a given ID, coordinates and radius.
+RATIONALE: To be used for the anti-theft module and to recognize location change for the cloud augmentation
+COMMENT: >>>
+There shall be also an interface with a fixed id for the current location geofence used by the cloud augmentation.
+Do I want to unify this interface?
+<<<
+REFS:
+- TYPE: Parent
+  VALUE: REQ-THEFT-001-01
+
+[REQUIREMENT]
+UID: LLD-GNSS-012
+STATUS: Approved
+VERIFICATION: ManualTest
+STATEMENT: GNSS module provides an interface to delete a geofence with a given ID.
+RATIONALE: For the modules to remove a managed geofence again or update it.
+COMMENT: >>>
+There shall be also an interface with a fixed id for the current location geofence used by the cloud augmentation.
+Do I want to unify this interface?
+<<<
+REFS:
+- TYPE: Parent
+  VALUE: REQ-THEFT-001-01
+
+[/SECTION]

@@ -1,0 +1,22 @@
+diff --git a/include/netutils/webclient.h b/include/netutils/webclient.h
+index 560f04cb5..c89881d42 100644
+--- a/include/netutils/webclient.h
++++ b/include/netutils/webclient.h
+@@ -56,7 +56,7 @@
+  ****************************************************************************/
+ 
+ #ifndef CONFIG_WEBCLIENT_MAXHTTPLINE
+-#  define CONFIG_WEBCLIENT_MAXHTTPLINE 200
++#  define CONFIG_WEBCLIENT_MAXHTTPLINE 512
+ #endif
+ 
+ #ifndef CONFIG_WEBCLIENT_MAXMIMESIZE
+@@ -68,7 +68,7 @@
+ #endif
+ 
+ #ifndef CONFIG_WEBCLIENT_MAXFILENAME
+-#  define CONFIG_WEBCLIENT_MAXFILENAME 100
++#  define CONFIG_WEBCLIENT_MAXFILENAME 256
+ #endif
+ 
+ #if defined(CONFIG_NETUTILS_CODECS)

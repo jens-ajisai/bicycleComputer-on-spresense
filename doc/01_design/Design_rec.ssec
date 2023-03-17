@@ -1,0 +1,123 @@
+[FRAGMENT]
+
+[SECTION]
+TITLE: Recording Design
+
+[REQUIREMENT]
+UID: HLD-REC
+STATUS: Approved
+VERIFICATION: Review
+STATEMENT: High-Level Design - Interfaces
+RATIONALE: None
+COMMENT: >>>
+
+Event-based Interface provided by Recording Module
+
++----------------------------------+-----------+--------------------+----------------------------------------------------------------------------------------------+
+| Event                            | Direction | Parameter          | Description                                                                                  |
++==================================+===========+====================+==============================================================================================+
+| CAMERA_EVT_RECORD_STREAM_ENABLE  | in        |                    | Enable saving the camera stream to an SD card.                                               |
++----------------------------------+-----------+--------------------+----------------------------------------------------------------------------------------------+
+| CAMERA_EVT_RECORD_STREAM_DISABLE | in        |                    | Disable saving the camera stream to the SD card.                                             |
++----------------------------------+-----------+--------------------+----------------------------------------------------------------------------------------------+
+| CAMERA_EVT_REQUEST_IMAGE         | in        |                    | Not used. Instead MQTT_EVT_RECV.                                                             |
++----------------------------------+-----------+--------------------+----------------------------------------------------------------------------------------------+
+| CAMERA_EVT_ERROR                 | out       | On error.          |                                                                                              |
++----------------------------------+-----------+--------------------+----------------------------------------------------------------------------------------------+
+
+Event-based Interface used by Recording Module
+
++----------------------------------+-----------+--------------------+----------------------------------------------------------------------------------------------+
+| Event                            | Direction | Parameter          | Description                                                                                  |
++==================================+===========+====================+==============================================================================================+
+| APP_MANAGER_EVT_RUNLEVEL         | in        | state, connection  | Initialize or deinitialize the camera module based on the defined runlevel                   |
++----------------------------------+-----------+--------------------+----------------------------------------------------------------------------------------------+
+| BUTTON_EVT_RELEASED              | in        |                    | Capture an image and send it by MQTT.                                                        |
++----------------------------------+-----------+--------------------+----------------------------------------------------------------------------------------------+
+| MQTT_EVT_RECV                    | in        | topic JSON message | On {topic} MQTT_TOPIC_GET_IMAGE capture an image of {width} and {height} and send it by MQTT |
++----------------------------------+-----------+--------------------+----------------------------------------------------------------------------------------------+
+
+<<<
+REFS:
+- TYPE: Parent
+  VALUE: REQ-REC-001
+- TYPE: Parent
+  VALUE: REQ-REC-002
+
+[REQUIREMENT]
+UID: LLD-REC-001
+STATUS: Approved
+VERIFICATION: AutomaticTest
+STATEMENT: Initialize the camera with the default values 1 buffer with jpeg buffer size divisor 15, 5 FPS, RGB565 format at resolution 240x180, JPEG quality 75 and auto white balance mode. Start streaming with a callback.
+RATIONALE: None
+REFS:
+- TYPE: Parent
+  VALUE: REQ-REC-001
+- TYPE: Parent
+  VALUE: REQ-UI-001
+
+[REQUIREMENT]
+UID: LLD-REC-002
+STATUS: Approved
+VERIFICATION: Review
+STATEMENT: The stream handler sends the image buffer to the display module via a direct function call.
+RATIONALE: As the image size is very large it cannot be copied to send it asynchronously to the display module. Instead, use a blocking function call so that the current image is kept in memory until the handover is complete.
+REFS:
+- TYPE: Parent
+  VALUE: REQ-UI-001
+
+[REQUIREMENT]
+UID: LLD-REC-003
+STATUS: Approved
+VERIFICATION: AutomaticTest
+STATEMENT: The stream handler writes the image to the sd card when the captured video is activated via CAMERA_EVT_RECORD_STREAM_ENABLE.
+RATIONALE: Writing to SD slows down the rendering fps and consumes memory. Therefore manually activate storing the stream to SD Card.
+COMMENT: Save the images in the folder video as a jpg with the UNIX timestamp in the file name.
+REFS:
+- TYPE: Parent
+  VALUE: REQ-REC-002
+
+[REQUIREMENT]
+UID: LLD-REC-004
+STATUS: Approved
+VERIFICATION: AutomaticTest
+STATEMENT: Camera errors shall be logged.
+RATIONALE: For debugging purposes
+COMMENT: Functionality as in the camera samples
+REFS:
+- TYPE: Parent
+  VALUE: REQ-DEV-001
+
+[REQUIREMENT]
+UID: LLD-REC-005
+STATUS: Approved
+VERIFICATION: ManualTest
+STATEMENT: Take a still image on button release and send a resized 120x120 image to MQTT
+RATIONALE: MQTT cannot handle large image files or it takes a long time, consuming expensive LTE data.
+COMMENT: Try to maximize the image quality with the available free memory. On failure try again to take an image with a low jpeg image quality of 50. Save the image to the SD card.
+REFS:
+- TYPE: Parent
+  VALUE: REQ-REMOTE-002
+
+[REQUIREMENT]
+UID: LLD-REC-006
+STATUS: Approved
+VERIFICATION: ManualTest
+STATEMENT: Take a still image on button release and save the image to the SD card.
+RATIONALE: None
+COMMENT: Try to maximize the image quality with the available free memory. On failure try again to take an image with a low jpeg image quality of 50. Save the image to the SD card.
+REFS:
+- TYPE: Parent
+  VALUE: REQ-REC-002
+
+[REQUIREMENT]
+UID: LLD-REC-007
+STATUS: Approved
+VERIFICATION: AutomaticTest
+STATEMENT: Take a still image on MQTT request with the desired dimensions and send it to MQTT
+RATIONALE: None
+REFS:
+- TYPE: Parent
+  VALUE: REQ-REMOTE-002
+
+[/SECTION]

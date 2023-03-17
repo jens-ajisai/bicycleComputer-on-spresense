@@ -1,0 +1,159 @@
+[FRAGMENT]
+
+[SECTION]
+TITLE: Cloud Augmentation Design
+
+[REQUIREMENT]
+UID: HLD-AUG
+STATUS: Approved
+VERIFICATION: Review
+STATEMENT: High-Level Design - Interfaces
+RATIONALE: None
+COMMENT: >>>
+
+Event-based Interface provided by Cloud Augmentation Module
+
+============================  =========  ============  ============================================
+Event                         Direction  Parameter     Description
+============================  =========  ============  ============================================
+CLOUDMODULE_EVT_GET_WEATHER   in                       Request to query the weather.               
+CLOUDMODULE_EVT_GET_ICECREAM  in                       Request to query the POI API.               
+CLOUDMODULE_EVT_WEATHER       out        rainfallData  Result of the weather API as {rainfallData}.
+CLOUDMODULE_EVT_ICECREAM      out        storeInfo     Result of the POI API as {storeInfo}.    
+CLOUDMODULE_EVT_ERROR         out                      not used.
+============================  =========  ============  ============================================
+
+Event-based Interface used by Cloud Augmentation Module
+
+========================  =========  ===============================  ======================================================================================
+Event                     Direction  Parameter                        Description
+========================  =========  ===============================  ======================================================================================
+APP_MANAGER_EVT_RUNLEVEL  in         state                            initialize or deinitialize the cloud augmentation module based on the defined runlevel
+LTE_EVT_IP                out        ip address                       Result to query the IP address.
+GNSS_EVT_SET_GEO_FENCE    out        id, lat, lng, radius             Request to create a new geo fence
+GNSS_EVT_GEO_FENCE        in         id, transition                   Notification that a geo fence triggered to update the ice cream shop
+GNSS_EVT_POSITION         in         lat, lng, fix, speed, direction  Nofitifaction of the current position to update the bearing of the shop
+========================  =========  ===============================  ======================================================================================
+
+<<<
+REFS:
+- TYPE: Parent
+  VALUE: REQ-AUG-001
+- TYPE: Parent
+  VALUE: REQ-AUG-002
+- TYPE: Parent
+  VALUE: REQ-UI-013
+- TYPE: Parent
+  VALUE: REQ-UI-014-01
+- TYPE: Parent
+  VALUE: REQ-UI-014-04
+
+[REQUIREMENT]
+UID: LLD-AUG-001
+STATUS: Approved
+VERIFICATION: AutomaticTest
+STATEMENT: The cloud data augmentation module shall be active while LTE is connected.
+RATIONALE: Without connectivity, all functionality will fail.
+COMMENT: Listen to the events LTE connected and LTE disconnected.
+REFS:
+- TYPE: Parent
+  VALUE: REQ-AUG-001
+
+[REQUIREMENT]
+UID: LLD-AUG-002
+STATUS: Approved
+VERIFICATION: AutomaticTest
+STATEMENT: The cloud data augmentation module shall query Yahoo! API for the nearest ice cream shop when the GNSS position becomes available.
+RATIONALE: GNSS position is required for the API.
+COMMENT: Decided for Yahoo! API as Yahoo! is strong in Japan and has very reliable weather data.
+REFS:
+- TYPE: Parent
+  VALUE: REQ-AUG-001
+
+[REQUIREMENT]
+UID: LLD-AUG-003
+STATUS: Approved
+VERIFICATION: AutomaticTest
+STATEMENT: The cloud data augmentation module shall calculate the distance to the nearest open ice cream shop by an offline algorithm approximating the straight line distance in kilometres when the GNSS position becomes available.
+RATIONALE: The distance is shown on the display
+COMMENT: Take the shape of the earth into account.
+REFS:
+- TYPE: Parent
+  VALUE: REQ-AUG-001
+
+[REQUIREMENT]
+UID: LLD-AUG-004
+STATUS: Approved
+VERIFICATION: AutomaticTest
+STATEMENT: The cloud data augmentation module shall calculate the bearing (the direction based on the own direction) to the nearest open ice cream shop by an offline algorithm in degrees when the GNSS position becomes available.
+RATIONALE: The direction is shown on the display.
+COMMENT: Search for an already existing algorithm.
+REFS:
+- TYPE: Parent
+  VALUE: REQ-AUG-001
+
+[REQUIREMENT]
+UID: LLD-AUG-005
+STATUS: Approved
+VERIFICATION: AutomaticTest
+STATEMENT: Trigger an update of the distance and bearing calculation with each GPS update.
+RATIONALE: The shown information shall be up to date.
+REFS:
+- TYPE: Parent
+  VALUE: REQ-AUG-001
+
+[REQUIREMENT]
+UID: LLD-AUG-006
+STATUS: Approved
+VERIFICATION: AutomaticTest
+STATEMENT: The cloud data augmentation module shall query Yahoo! API for the nearest ice cream shop when the position of the last calculation is farther than 1 km away.
+RATIONALE: Another shop might be nearer.
+COMMENT: Use the geofence functionality to determine when the distance is farther than 1 km.
+REFS:
+- TYPE: Parent
+  VALUE: REQ-AUG-001
+
+[REQUIREMENT]
+UID: LLD-AUG-007
+STATUS: Approved
+VERIFICATION: AutomaticTest
+STATEMENT: Provide the information shop name, distance, and bearing of the nearest shop to other modules via event.
+RATIONALE: The display module shall display the information and the global data shall keep them.
+REFS:
+- TYPE: Parent
+  VALUE: REQ-AUG-001
+
+[REQUIREMENT]
+UID: LLD-AUG-008
+STATUS: Approved
+VERIFICATION: AutomaticTest
+STATEMENT: The cloud data augmentation module shall query Yahoo! Weather API to calculate if there is rainfall within the next hour at the current location when the GNSS position becomes available.
+RATIONALE: The user shall be warned when rain is approaching
+COMMENT: It could be considered to have a threshold for heavy rain.
+REFS:
+- TYPE: Parent
+  VALUE: REQ-AUG-002
+
+[REQUIREMENT]
+UID: LLD-AUG-009
+STATUS: Approved
+VERIFICATION: AutomaticTest
+STATEMENT: The cloud data augmentation module shall update the weather information at each full hour.
+RATIONALE: The weather data provides a more detailed rain forecast for the next hour.
+COMMENT: Using a full hour simplifies the logic.
+REFS:
+- TYPE: Parent
+  VALUE: REQ-AUG-002
+
+[REQUIREMENT]
+UID: LLD-AUG-010
+STATUS: Approved
+VERIFICATION: ManualTest
+STATEMENT: API queries shall not block other modules.
+RATIONALE: The whole program shall not be blocked as network activity requires a long time.
+COMMENT: Use a separate thread and take care that the used libraries do not block.
+REFS:
+- TYPE: Parent
+  VALUE: REQ-SYSTEM-007
+
+[/SECTION]

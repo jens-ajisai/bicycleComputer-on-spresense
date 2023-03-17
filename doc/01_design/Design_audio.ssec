@@ -1,0 +1,111 @@
+[FRAGMENT]
+
+[SECTION]
+TITLE: Audio Design
+
+[REQUIREMENT]
+UID: HLD-AUDIO
+STATUS: Approved
+VERIFICATION: Review
+STATEMENT: High-Level Design - Interfaces
+RATIONALE: None
+COMMENT: >>>
+
+Event-based Interface provided by Audio Module
+
+========================  =========  =================  ==================================
+Event                     Direction  Parameter          Description
+========================  =========  =================  ==================================
+AUDIO_EVT_AUDIO           N/A        duration           sent when recording starts
+AUDIO_EVT_AUDIO_FINISHED  out                           sent when the recording finishes
+AUDIO_EVT_GET_AUDIO       in         duration           start the recording for {duration}
+AUDIO_EVT_ERROR           N/A                           sent on error
+========================  =========  =================  ==================================
+
+Event-based Interface used by Audio Module
+
+========================  =========  =================  ================================================================================
+Event                     Direction  Parameter          Description
+========================  =========  =================  ================================================================================
+APP_MANAGER_EVT_RUNLEVEL  in         state              initialize or deinitialize the audio module based on the defined runlevel
+BUTTON_EVT_RELEASED       in                            start the recording
+MQTT_EVT_SEND             out        topic, data, size  Send an MQTT message with audio {data} of {size} to the {topic} MQTT_TOPIC_AUDIO
+========================  =========  =================  ================================================================================
+
+<<<
+REFS:
+- TYPE: Parent
+  VALUE: REQ-REC-003
+- TYPE: Parent
+  VALUE: REQ-REMOTE-003
+
+[REQUIREMENT]
+UID: LLD-AUDIO-001
+STATUS: Approved
+VERIFICATION: AutomaticTest
+STATEMENT: When receiving ApplicationUserMultimedia, initialize the audio module.
+RATIONALE: The audio module uses a lot of SRAM, therefore initialize it only on demand. Only the user button leads to a transition to ApplicationUserMultimedia.
+COMMENT: The audio parameters are 48kHz 16bit 2ch mp3. The gain is 210.
+REFS:
+- TYPE: Parent
+  VALUE: REQ-REC-003
+- TYPE: Parent
+  VALUE: REQ-REMOTE-003
+
+[REQUIREMENT]
+UID: LLD-AUDIO-002
+STATUS: Approved
+VERIFICATION: AutomaticTest
+STATEMENT: On button release record audio for 10 seconds.
+RATIONALE: Audio requires a lot of memory and bandwidth. Only record on user interaction.
+REFS:
+- TYPE: Parent
+  VALUE: REQ-REC-003
+
+[REQUIREMENT]
+UID: LLD-AUDIO-003
+STATUS: Approved
+VERIFICATION: AutomaticTest
+STATEMENT: On get audio event, record for as many seconds as given in the parameter.
+RATIONALE: Audio requires a lot of memory and bandwidth. This event is only issued by shell commands.
+REFS:
+- TYPE: Parent
+  VALUE: REQ-REC-003
+- TYPE: Parent
+  VALUE: REQ-REMOTE-003
+
+[REQUIREMENT]
+UID: LLD-AUDIO-004
+STATUS: Approved
+VERIFICATION: AutomaticTest
+STATEMENT: Recorded audio frames are saved to an SD card. The filename includes the timestamp of the start of the recording.
+RATIONALE: SD card is a large memory storage. It is best for larger recordings.
+COMMENT: Verify if the SD card is fast enough.
+REFS:
+- TYPE: Parent
+  VALUE: REQ-REC-003
+
+[REQUIREMENT]
+UID: LLD-AUDIO-005
+STATUS: Approved
+VERIFICATION: AutomaticTest
+STATEMENT: Recorded audio frames are streamed via MQTT.
+RATIONALE: This is used for remote check of the anti-theft module.
+COMMENT: The connection is not fast enough to stream in real-time mp3. Verify.
+REFS:
+- TYPE: Parent
+  VALUE: REQ-REMOTE-003
+
+[REQUIREMENT]
+UID: LLD-AUDIO-006
+STATUS: Approved
+VERIFICATION: AutomaticTest
+STATEMENT: Recording can be stopped by an audio event.
+RATIONALE: When giving a long timeout, give the possibility to stop earlier.
+REFS:
+- TYPE: Parent
+  VALUE: REQ-REC-003
+- TYPE: Parent
+  VALUE: REQ-REMOTE-003
+
+[/SECTION]

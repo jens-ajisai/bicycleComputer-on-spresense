@@ -1,0 +1,161 @@
+[FRAGMENT]
+
+[SECTION]
+TITLE: Status Design
+
+[REQUIREMENT]
+UID: HLD-STATUS
+STATUS: Approved
+VERIFICATION: Review
+STATEMENT: High-Level Design - Interfaces
+RATIONALE: None
+COMMENT: >>>
+
+List up status information.
+
+Event-based Interface provided by Status Module
+
+========================  =========  =========  ======================================================================================
+Event                     Direction  Parameter  Description
+========================  =========  =========  ======================================================================================
+GLOBALSTATUS_EVT_UPDATE   out        gStat      Periodically send the status information.
+GLOBALSTATUS_EVT_ERROR    out                   On error.
+========================  =========  =========  ======================================================================================
+
+Event-based Interface used by Status Module
+
++------------------------------------------+-----------+-----------+------------------------------------------------------------------------------------------+
+| Event                                    | Direction | Parameter | Description                                                                              |
++==========================================+===========+===========+==========================================================================================+
+| APP_MANAGER_EVT_RUNLEVEL                 | in        |           | Initialize or deinitialize the Status module based on the defined runlevel.MQTT_EVT_SEND |
++------------------------------------------+-----------+-----------+------------------------------------------------------------------------------------------+
+| LTE_EVT_CONNECTED                        | in        |           | Update status with LTE connection status.                                                |
++------------------------------------------+-----------+-----------+------------------------------------------------------------------------------------------+
+| LTE_EVT_DISCONNECTED                     | in        |           | Update status with LTE connection status.                                                |
++------------------------------------------+-----------+-----------+------------------------------------------------------------------------------------------+
+| CYCLE_SENSOR_EVT_HEART_RATE_CONNECTED    | in        |           | Update status with BLE connection status.                                                |
++------------------------------------------+-----------+-----------+------------------------------------------------------------------------------------------+
+| CYCLE_SENSOR_EVT_HEART_RATE_DISCONNECTED | in        |           | Update status with BLE connection status.                                                |
++------------------------------------------+-----------+-----------+------------------------------------------------------------------------------------------+
+| CYCLE_SENSOR_EVT_SAW_MOBILE              | in        |           | Update status with mobile nearby status.                                                 |
++------------------------------------------+-----------+-----------+------------------------------------------------------------------------------------------+
+| CYCLE_SENSOR_EVT_LOST_MOBILE             | in        |           | Update status with mobile nearby status.                                                 |
++------------------------------------------+-----------+-----------+------------------------------------------------------------------------------------------+
+| GNSS_EVT_POSITION                        | in        |           | Update status with GNSS information.                                                     |
++------------------------------------------+-----------+-----------+------------------------------------------------------------------------------------------+
+| GNSS_EVT_GEO_FENCE                       | in        |           | Update status with Geofence information.                                                 |
++------------------------------------------+-----------+-----------+------------------------------------------------------------------------------------------+
+| UITFT_EVT_ON                             | in        |           | Update status with TFT on/off status information.                                        |
++------------------------------------------+-----------+-----------+------------------------------------------------------------------------------------------+
+
+<<<
+REFS:
+- TYPE: Parent
+  VALUE: REQ-REMOTE-002
+
+[REQUIREMENT]
+UID: LLD-STATUS-001
+STATUS: Approved
+VERIFICATION: AutomaticTest
+STATEMENT: The status module can query the memory usage (used/free/continuous free) of the memory tiles.
+RATIONALE: This information could be used before starting sub-core workers.
+COMMENT: Currently not in use.
+REFS:
+- TYPE: Parent
+  VALUE: REQ-DEV-008
+
+[REQUIREMENT]
+UID: LLD-STATUS-002
+STATUS: Approved
+VERIFICATION: AutomaticTest
+STATEMENT: The status module can query the memory usage (used/free/continuous free) of the SRAM.
+RATIONALE: This information is used to determine the best possible jpeg quality of the camera pictures given the available memory.
+COMMENT: Using the filesystem "/meminfo" and parsing the output is the most convenient method without reinventing the access via API from the application side.
+REFS:
+- TYPE: Parent
+  VALUE: REQ-DEV-008
+
+[REQUIREMENT]
+UID: LLD-STATUS-003
+STATUS: Approved
+VERIFICATION: AutomaticTest
+STATEMENT: The status module can query the memory usage (used/free) of the SD card.
+RATIONALE: This information is used to notify the user when the card is getting full to take action.
+COMMENT: It is used by the display module.
+REFS:
+- TYPE: Parent
+  VALUE: REQ-UI-014-02
+- TYPE: Parent
+  VALUE: REQ-DEV-008
+
+[REQUIREMENT]
+UID: LLD-STATUS-004
+STATUS: Approved
+VERIFICATION: AutomaticTest
+STATEMENT: The status module can query the battery level.
+RATIONALE: This information is used to notify the user when the battery is getting empty to take action.
+COMMENT: Use the API to read the battery voltage. It is sufficient to approximate the battery level as an accurate calculation (calibration) depends on the battery itself. I currently do not think it is worth the effort to calibrate the battery percentage.
+REFS:
+- TYPE: Parent
+  VALUE: REQ-UI-003
+
+[REQUIREMENT]
+UID: LLD-STATUS-005
+STATUS: Approved
+VERIFICATION: AutomaticTest
+STATEMENT: The status module collects several status information from the modules.
+RATIONALE: This is for debugging purposes and also stored for later analysis.
+COMMENT: >>>
+The status values are
+
+- battery remaining percentage
+- if LTE is connected
+- if BLE is connected
+- if the phone is nearby
+- IP Address of the LTE connection
+- GNSS information latitude, longitude, speed, direction
+- status of the geofence
+- if the display is on
+- free memory of the SD card
+- free memory of the SRAM
+- firmware version
+
+<<<
+REFS:
+- TYPE: Parent
+  VALUE: REQ-REMOTE-002
+
+[REQUIREMENT]
+UID: LLD-STATUS-006
+STATUS: Approved
+VERIFICATION: AutomaticTest
+STATEMENT: The status module provides the status as a JSON object.
+RATIONALE: The JSON string is used to format the status information for storage.
+COMMENT: For simplicity write a JSON string manually. No parsing is required.
+REFS:
+- TYPE: Parent
+  VALUE: REQ-REMOTE-002
+
+[REQUIREMENT]
+UID: LLD-STATUS-007
+STATUS: Approved
+VERIFICATION: AutomaticTest
+STATEMENT: The status module periodically records the status information to the SD card and sends it to the cloud.
+RATIONALE: Persist the information for later analysis.
+COMMENT: The interval is 60 seconds. Information managed by the status module like SRAM availability, SD card memory availability and battery status is updated in this interval.
+REFS:
+- TYPE: Parent
+  VALUE: REQ-REC-004
+
+[REQUIREMENT]
+UID: LLD-STATUS-008
+STATUS: Approved
+VERIFICATION: AutomaticTest
+STATEMENT: The status module persists the GNSS information upon update to the cloud and SD card.
+RATIONALE: GNSS information changes more frequently than other status information. This information is meant for the user.
+COMMENT: Also use a JSON object to format the information.
+REFS:
+- TYPE: Parent
+  VALUE: REQ-REMOTE-003
+
+[/SECTION]

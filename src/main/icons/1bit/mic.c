@@ -1,0 +1,26 @@
+#if defined(LV_LVGL_H_INCLUDE_SIMPLE)
+#include "lvgl.h"
+#else
+#include "lvgl/lvgl.h"
+#endif
+
+#ifndef LV_ATTRIBUTE_MEM_ALIGN
+#define LV_ATTRIBUTE_MEM_ALIGN
+#endif
+
+#ifndef LV_ATTRIBUTE_IMG_MIC
+#define LV_ATTRIBUTE_IMG_MIC
+#endif
+
+const LV_ATTRIBUTE_MEM_ALIGN LV_ATTRIBUTE_LARGE_CONST LV_ATTRIBUTE_IMG_MIC
+    uint8_t mic_map[] = {
+        0x00, 0x00, 0x0f, 0x00, 0x0f, 0x00, 0x0f, 0x00, 0x0f, 0x00, 0x0f, 0x00,
+        0x0f, 0x00, 0x0f, 0x00, 0xcf, 0x30, 0xcf, 0x30, 0x66, 0x20, 0x60, 0xe0,
+        0x3f, 0xc0, 0x0f, 0x00, 0x06, 0x00, 0x06, 0x00, 0x00, 0x00,
+};
+
+const lv_img_dsc_t img_mic = {
+    {LV_IMG_CF_ALPHA_1BIT, 0, 0, 12, 17},
+    34,
+    mic_map,
+};

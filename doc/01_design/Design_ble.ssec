@@ -1,0 +1,174 @@
+[FRAGMENT]
+
+[SECTION]
+TITLE: Cycle Sensor Design
+
+[REQUIREMENT]
+UID: HLD-BIKE
+STATUS: Approved
+VERIFICATION: Review
+STATEMENT: High-Level Design - Interfaces
+RATIONALE: None
+COMMENT: >>>
+
+Event-based Interface provided by Cycle Sensor Module
+
++------------------------------------------+-----------+------------+---------------------------------------------------+
+| Event                                    | Direction | Parameter  | Description                                       |
++==========================================+===========+============+===================================================+
+| CYCLE_SENSOR_EVT_HEART_RATE_CONNECTED    | out       |            | When a heart rate sensor is connected.            |
++------------------------------------------+-----------+------------+---------------------------------------------------+
+| CYCLE_SENSOR_EVT_HEART_RATE_DISCONNECTED | out       |            | When the heart rate sensor disconnected.          |
++------------------------------------------+-----------+------------+---------------------------------------------------+
+| CYCLE_SENSOR_EVT_HEART_RATE_READING      | out       | heart rate | On notification of a heart rate reading.          |
++------------------------------------------+-----------+------------+---------------------------------------------------+
+| CYCLE_SENSOR_EVT_SAW_MOBILE              | out       |            | When the registered smartphone is seen.           |
++------------------------------------------+-----------+------------+---------------------------------------------------+
+| CYCLE_SENSOR_EVT_LOST_MOBILE             | out       |            | When the registered smartphone went out of range. |
++------------------------------------------+-----------+------------+---------------------------------------------------+
+| CYCLE_SENSOR_EVT_ERROR                   | out       |            | On Error                                          |
++------------------------------------------+-----------+------------+---------------------------------------------------+
+
+Event-based Interface used by Cycle Sensor Module
+
+========================  =========  ===============================  ======================================================================================
+Event                     Direction  Parameter                        Description
+========================  =========  ===============================  ======================================================================================
+APP_MANAGER_EVT_RUNLEVEL  in         state                            initialize or deinitialize the cycle sensor module based on the defined runlevel
+========================  =========  ===============================  ======================================================================================
+
+<<<
+REFS:
+- TYPE: Parent
+  VALUE: REQ-BIKE-001-01
+- TYPE: Parent
+  VALUE: REQ-THEFT-001-03
+
+[REQUIREMENT]
+UID: LLD-BIKE-001
+STATUS: Approved
+VERIFICATION: AutomaticTest
+STATEMENT: Use a random BLE address to protect privacy from tracking.
+RATIONALE: A static address can be tracked because it is visible to any device in range. Therefore use a random address.
+COMMENT: >>>
+A not-resolvable address is fine if no device initiates a connection to the bike computer. 
+When other devices need to recognize the bike computer a resolvable private address is required.
+However, it did not work well to resolve the address successfully on an iPhone.
+<<<
+REFS:
+- TYPE: Parent
+  VALUE: REQ-SYSTEM-008
+
+[REQUIREMENT]
+UID: LLD-BIKE-002
+STATUS: Approved
+VERIFICATION: AutomaticTest
+STATEMENT: The Cycle sensor knows the IRK of the associated phone to be able to track it.
+RATIONALE: The iPhone uses a resolvable random address. It does not broadcast a name. Therefore the IRK is required to resolve the address.
+COMMENT: Automatic retrieval is not possible because pairing a second time does not work. The reason is still unknown after deep research.
+REFS:
+- TYPE: Parent
+  VALUE: REQ-THEFT-001-03
+
+[REQUIREMENT]
+UID: LLD-BIKE-003
+STATUS: Approved
+VERIFICATION: AutomaticTest
+STATEMENT: The cycle sensor connects to HRM sensors nearby.
+RATIONALE: A commercial BLE-based heart rate sensor is used due to the complexity of creating a reliable sensor myself.
+COMMENT: It recognizes the sensors by the advertisement of a HRM service according to the Bluetooth specification.
+REFS:
+- TYPE: Parent
+  VALUE: REQ-BIKE-001-01
+
+[REQUIREMENT]
+UID: LLD-BIKE-004
+STATUS: Approved
+VERIFICATION: AutomaticTest
+STATEMENT: The cycle sensor subscribes to the heart rate value characteristic of the HRM service.
+RATIONALE: The HRM service will send notifications of the measurements.
+COMMENT: It decodes the value and sends if the sensor reading is valid (contact) and it's reading.
+REFS:
+- TYPE: Parent
+  VALUE: REQ-BIKE-001-01
+- TYPE: Parent
+  VALUE: REQ-UI-004
+
+[REQUIREMENT]
+UID: LLD-BIKE-005
+STATUS: Approved
+VERIFICATION: ManualTest
+STATEMENT: The cycle sensor notifies other modules when the heart rate sensor is connected/disconnected.
+RATIONALE: The display shows the connection status to the user.
+COMMENT: Use the connection status callbacks.
+REFS:
+- TYPE: Parent
+  VALUE: REQ-UI-007
+
+[REQUIREMENT]
+UID: LLD-BIKE-006
+STATUS: Approved
+VERIFICATION: ManualTest
+STATEMENT: The cycle sensor can establish an encrypted connection to exchange IRK, and LTK of a phone. It automatically confirms the pairing code.
+RATIONALE: The IRK resolves the random address to determine if the phone is nearby.
+COMMENT: IRK can only be retrieved by following the secure connection procedure or logging all communication of the phone to its BLE module (HCI commands and events). No menu on the phone shows the IRK.
+REFS:
+- TYPE: Parent
+  VALUE: REQ-THEFT-001-03
+
+[REQUIREMENT]
+UID: LLD-BIKE-007
+STATUS: Approved
+VERIFICATION: AutomaticTest
+STATEMENT: The BLE module advertises as BIKE_CAM when there is no IRK saved on the SD card.
+RATIONALE: This allows to initiate a secure BLE connection from the phone to be monitored to retrieve its IRK.
+REFS:
+- TYPE: Parent
+  VALUE: REQ-THEFT-001-03
+
+[REQUIREMENT]
+UID: LLD-BIKE-008
+STATUS: Approved
+VERIFICATION: AutomaticTest
+STATEMENT: The BLE module offers an encryption characteristic that can be written.
+RATIONALE: Secure connection is only initiated when required. So to get the IRK an encrypted characteristic is necessary.
+REFS:
+- TYPE: Parent
+  VALUE: REQ-THEFT-001-03
+
+[REQUIREMENT]
+UID: LLD-BIKE-009
+STATUS: Approved
+VERIFICATION: AutomaticTest
+STATEMENT: The cycle sensor provides an API for clearing the pairing information.
+RATIONALE: To re-establish it from the beginning because the other side lost the pairing information, the current pairing information on the device must be deleted.
+COMMENT: As the IRK is saved on the SD card, deleting the file will do the job.
+REFS:
+- TYPE: Parent
+  VALUE: REQ-THEFT-001-03
+
+[REQUIREMENT]
+UID: LLD-BIKE-010
+STATUS: Approved
+VERIFICATION: Review
+STATEMENT: The cycle sensor communicates with a BLE module using HCI commands. Nordic Semiconductor extensions are in use.
+RATIONALE: Spresense does not include BLE, so a separate module is required. The Bluetooth Specification defines HCI commands. It is a standard to communicate with a BLE controller.
+COMMENT: Use the ArduinoBLE library.
+REFS:
+- TYPE: Parent
+  VALUE: HLD-BIKE
+
+[REQUIREMENT]
+UID: LLD-BIKE-011
+STATUS: Approved
+VERIFICATION: ManualTest
+STATEMENT: The BLE module periodically scans for BLE devices to see if an HRM sensor is found (if not already connected) and if the smartphone is nearby and sends the information.
+RATIONALE: The device automatically connects to the HRM sensor. Checking if the smartphone is nearby is a major factor to detect theft.
+COMMENT: Scan each minute for 10.24s. Send the information to other modules on change.
+REFS:
+- TYPE: Parent
+  VALUE: REQ-THEFT-001-03
+- TYPE: Parent
+  VALUE: REQ-UI-012
+
+[/SECTION]

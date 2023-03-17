@@ -1,0 +1,15 @@
+diff --git a/src/misc/lv_fs.c b/src/misc/lv_fs.c
+index 52f3ce07d..244b5cde3 100644
+--- a/src/misc/lv_fs.c
++++ b/src/misc/lv_fs.c
+@@ -84,10 +84,6 @@ lv_fs_res_t lv_fs_open(lv_fs_file_t * file_p, const char * path, lv_fs_mode_t mo
+     const char * real_path = lv_fs_get_real_path(path);
+     void * file_d = drv->open_cb(drv, real_path, mode);
+ 
+-    if(file_d == NULL || file_d == (void *)(-1)) {
+-        return LV_FS_RES_UNKNOWN;
+-    }
+-
+     file_p->drv = drv;
+     file_p->file_d = file_d;
+ 

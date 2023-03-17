@@ -1,0 +1,150 @@
+[FRAGMENT]
+
+[SECTION]
+TITLE: MQTT Design
+
+[REQUIREMENT]
+UID: HLD-MQTT
+STATUS: Approved
+VERIFICATION: Review
+STATEMENT: High-Level Design - Interfaces
+RATIONALE: None
+COMMENT: >>>
+
+Provide a function to directly upload images due to the large memory usage of images that cannot be buffered.
+
+Event-based Interface provided by MQTT Module
+
++----------------+-----------+------------------------------+-----------------------------------------------------------------------------------------------------------------------------------+
+| Event          | Direction | Parameter                    | Description                                                                                                                       |
++================+===========+==============================+===================================================================================================================================+
+| MQTT_EVT_SEND  | out       | topic, message, data, isData | Request to send an MQTT {message} to a {topic}. Message can be a string {message} or binary {data} selected by the flag {isData}. |
++----------------+-----------+------------------------------+-----------------------------------------------------------------------------------------------------------------------------------+
+| MQTT_EVT_RECV  | out       | topic, message               | Received MQTT {message} to the {topic}.                                                                                           |
++----------------+-----------+------------------------------+-----------------------------------------------------------------------------------------------------------------------------------+
+| MQTT_EVT_ERROR | out       |                              | On error                                                                                                                          |
++----------------+-----------+------------------------------+-----------------------------------------------------------------------------------------------------------------------------------+
+
+Event-based Interface used by MQTT Module
+
++--------------------------+-----------+----------------------------+----------------------------------------------------------------------------------------+
+| Event                    | Direction | Parameter                  | Description                                                                            |
++==========================+===========+============================+========================================================================================+
+| APP_MANAGER_EVT_RUNLEVEL | in        | state, connection          | initialize or deinitialize the MQTT module based on the defined runlevel               |
++--------------------------+-----------+----------------------------+----------------------------------------------------------------------------------------+
+| GNSS_EVT_POSITION        | in        | lat, lng, speed, direction | request to send an MQTT message with GNSS data to the topic MQTT_TOPIC_GNSS            |
++--------------------------+-----------+----------------------------+----------------------------------------------------------------------------------------+
+
+<<<
+REFS:
+- TYPE: Parent
+  VALUE: REQ-REMOTE-001
+- TYPE: Parent
+  VALUE: REQ-REMOTE-002
+
+[REQUIREMENT]
+UID: LLD-MQTT-001
+STATUS: Approved
+VERIFICATION: AutomaticTest
+STATEMENT: When receiving ApplicationSystemStart with the connection state LTE-connected, initialize the MQTT module and connect to the MQTT server.
+RATIONALE: As the IP given by Soracom is not remotely connectable (without a considerable fee (for this project)), MQTT is used for remote commands.
+COMMENT: Connect to Amazon IoT Server "xxx.iot.us-east-1.amazonaws.com" on a secured port 8883 using certificates stored on an SD card. Keep alive interval shall be 5 minutes.
+REFS:
+- TYPE: Parent
+  VALUE: REQ-REMOTE-001
+
+[COMPOSITE_REQUIREMENT]
+UID: LLD-MQTT-002
+STATUS: Approved
+VERIFICATION: AutomaticTest
+STATEMENT: Register to remote command topics and handle them by forwarding the requests via events.
+RATIONALE: None
+REFS:
+- TYPE: Parent
+  VALUE: REQ-REMOTE-001
+
+[REQUIREMENT]
+UID: LLD-MQTT-002-01
+STATUS: Approved
+VERIFICATION: AutomaticTest
+STATEMENT: Register command MQTT_TOPIC_GET_AUDIO "jens/feeds/spresense.getAudio"
+RATIONALE: None
+COMMENT: Handling this message is not implemented.
+REFS:
+- TYPE: Parent
+  VALUE: REQ-REMOTE-001
+
+[REQUIREMENT]
+UID: LLD-MQTT-002-02
+STATUS: Approved
+VERIFICATION: AutomaticTest
+STATEMENT: Register command MQTT_TOPIC_GET_IMAGE "jens/feeds/spresense.getImage"
+RATIONALE: None
+REFS:
+- TYPE: Parent
+  VALUE: REQ-REMOTE-001
+
+[REQUIREMENT]
+UID: LLD-MQTT-002-03
+STATUS: Approved
+VERIFICATION: AutomaticTest
+STATEMENT: Register command MQTT_TOPIC_GET_STATUS "jens/feeds/spresense.getStatus". Handle it by sending the global status JSON string to the topic "jens/feeds/spresense.status".
+RATIONALE: None
+COMMENT: >>>
+To save data, the position shall be sent for every significant change (a small geofence) via MQTT. (But should still send every x minutes to notice a broken connection or error state.)
+While the getCamera is handled by the camera module, the getStatus is handled within the MQTT module. Is this wanted?
+<<<
+REFS:
+- TYPE: Parent
+  VALUE: REQ-REMOTE-001
+
+[/COMPOSITE_REQUIREMENT]
+
+[REQUIREMENT]
+UID: LLD-MQTT-003
+STATUS: Approved
+VERIFICATION: AutomaticTest
+STATEMENT: When receiving a GNSS position event, send it as a JSON string to the topic "jens/feeds/spresense.gnss".
+RATIONALE: The position history shall be available for further analysis in the cloud.
+REFS:
+- TYPE: Parent
+  VALUE: REQ-REMOTE-003
+
+[REQUIREMENT]
+UID: LLD-MQTT-004
+STATUS: Approved
+VERIFICATION: AutomaticTest
+STATEMENT: Arbitrary MQTT messages shall be possible to be sent via events.
+RATIONALE: Include this generic interface for easy augmentation.
+COMMENT: >>>
+This means the module that sends it needs to know MQTT topics. Is this wanted? Shall this interface only be used for testing?
+This could be used by the anti-theft module to send messages. Otherwise, the Mqtt module needs to be augmented. Should the MQTT module know what every other module does??? Should registration and unregistration requests come from other modules??
+<<<
+REFS:
+- TYPE: Parent
+  VALUE: REQ-REMOTE-001
+- TYPE: Parent
+  VALUE: REQ-REMOTE-004
+
+[REQUIREMENT]
+UID: LLD-MQTT-005
+STATUS: Approved
+VERIFICATION: AutomaticTest
+STATEMENT: Handle incoming messages by polling the MQTT library every 5 seconds in a thread.
+RATIONALE: This is required by the MQTT library.
+REFS:
+- TYPE: Parent
+  VALUE: HLD-MQTT
+
+[REQUIREMENT]
+UID: LLD-MQTT-006
+STATUS: Approved
+VERIFICATION: AutomaticTest
+STATEMENT: Provide a function to upload images.
+RATIONALE: As images use a lot of memory, the data cannot be copied to events as payload. Therefore provide a directly callable blocking function that sends the image data as an MQTT message.
+COMMENT: Image data shall be sent as a base64 encoded string embedded in a JSON object. Divide the image into chunks while encoding it and use the streaming print method of the MQTT library.
+REFS:
+- TYPE: Parent
+  VALUE: HLD-MQTT
+
+[/SECTION]

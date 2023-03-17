@@ -1,0 +1,13 @@
+diff --git a/Adafruit_Sensor_Calibration.h b/Adafruit_Sensor_Calibration.h
+index b78bacb..55d19c2 100644
+--- a/Adafruit_Sensor_Calibration.h
++++ b/Adafruit_Sensor_Calibration.h
+@@ -5,7 +5,7 @@
+ 
+ #if defined(__AVR_ATmega328P__) || defined(__AVR_ATmega32U4__) ||              \
+     defined(__AVR_ATmega2560__) || defined(ESP8266) || defined(ESP32) ||       \
+-    defined(TEENSYDUINO)
++    defined(TEENSYDUINO) || defined(ARDUINO_ARCH_SPRESENSE)
+ #define ADAFRUIT_SENSOR_CALIBRATION_USE_EEPROM
+ #else
+ #define ADAFRUIT_SENSOR_CALIBRATION_USE_SDFAT

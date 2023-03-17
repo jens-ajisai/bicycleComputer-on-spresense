@@ -1,0 +1,100 @@
+diff --git a/Arduino15/packages/SPRESENSE/hardware/spresense/1.0.0/cores/spresense/Arduino.h b/Arduino15/packages/SPRESENSE/hardware/spresense/1.0.0/cores/spresense/Arduino.h
+index 383c574..1bc3f26 100644
+--- a/Arduino15/packages/SPRESENSE/hardware/spresense/1.0.0/cores/spresense/Arduino.h
++++ b/Arduino15/packages/SPRESENSE/hardware/spresense/1.0.0/cores/spresense/Arduino.h
+@@ -45,7 +45,10 @@ extern "C"{
+ #include "wiring.h"
+ #include "leds.h"
+ 
++#pragma GCC diagnostic push
++#pragma GCC diagnostic ignored "-Wshadow"
+ typedef uint8_t byte;
++#pragma GCC diagnostic pop
+ typedef uint16_t word;
+ 
+ /* Constants */
+diff --git a/Arduino15/packages/SPRESENSE/hardware/spresense/1.0.0/libraries/Camera/Camera.cpp b/Arduino15/packages/SPRESENSE/hardware/spresense/1.0.0/libraries/Camera/Camera.cpp
+index 69806e2..0eefc6a 100644
+--- a/Arduino15/packages/SPRESENSE/hardware/spresense/1.0.0/libraries/Camera/Camera.cpp
++++ b/Arduino15/packages/SPRESENSE/hardware/spresense/1.0.0/libraries/Camera/Camera.cpp
+@@ -895,7 +895,8 @@ CamErr CameraClass::begin(int buff_num, CAM_VIDEO_FPS fps, int video_width, int
+       return CAM_ERR_NO_DEVICE;
+     }
+ 
+-  imageproc_initialize();
++// I initialize this myself and do not use this with Camera library
++//  imageproc_initialize();
+ 
+   if (buff_num == 0)
+     {
+diff --git a/Arduino15/packages/SPRESENSE/hardware/spresense/1.0.0/libraries/EEPROM/src/EEPROM.h b/Arduino15/packages/SPRESENSE/hardware/spresense/1.0.0/libraries/EEPROM/src/EEPROM.h
+index 642a06f..bd3038c 100644
+--- a/Arduino15/packages/SPRESENSE/hardware/spresense/1.0.0/libraries/EEPROM/src/EEPROM.h
++++ b/Arduino15/packages/SPRESENSE/hardware/spresense/1.0.0/libraries/EEPROM/src/EEPROM.h
+@@ -18,6 +18,8 @@
+   License along with this library; if not, write to the Free Software
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
+ */
++#pragma GCC diagnostic push
++#pragma GCC diagnostic ignored "-Wshadow"
+ 
+ #ifndef EEPROM_h
+ #define EEPROM_h
+@@ -259,3 +261,4 @@ extern EEPROMClass EEPROM;
+ /** @} eeprom */
+ 
+ #endif
++#pragma GCC diagnostic pop
+diff --git a/Arduino15/packages/SPRESENSE/hardware/spresense/1.0.0/libraries/File/src/File.cpp b/Arduino15/packages/SPRESENSE/hardware/spresense/1.0.0/libraries/File/src/File.cpp
+index 4d3a597..0517549 100644
+--- a/Arduino15/packages/SPRESENSE/hardware/spresense/1.0.0/libraries/File/src/File.cpp
++++ b/Arduino15/packages/SPRESENSE/hardware/spresense/1.0.0/libraries/File/src/File.cpp
+@@ -34,6 +34,9 @@
+ 
+ #include <File.h>
+ 
++#pragma GCC diagnostic push
++#pragma GCC diagnostic ignored "-Wshadow"
++
+ #define MAXFILELEN 128
+ 
+ //#define DEBUG
+@@ -267,3 +270,4 @@ void File::rewindDirectory(void) {
+     ::rewinddir((DIR*)_dir);
+ }
+ 
++#pragma GCC diagnostic pop
+diff --git a/Arduino15/packages/SPRESENSE/hardware/spresense/1.0.0/libraries/MP/src/MP.h b/Arduino15/packages/SPRESENSE/hardware/spresense/1.0.0/libraries/MP/src/MP.h
+index 1007d58..fada650 100644
+--- a/Arduino15/packages/SPRESENSE/hardware/spresense/1.0.0/libraries/MP/src/MP.h
++++ b/Arduino15/packages/SPRESENSE/hardware/spresense/1.0.0/libraries/MP/src/MP.h
+@@ -74,6 +74,8 @@
+ #define MP_MAX_SUBID 6
+ 
+ /* MP Log utility */
++// Fix compiler warning
++#ifdef SUBCORE
+ #if   (SUBCORE == 1)
+ #define MPLOG_PREFIX "[Sub1] "
+ #elif (SUBCORE == 2)
+@@ -84,6 +86,7 @@
+ #define MPLOG_PREFIX "[Sub4] "
+ #elif (SUBCORE == 5)
+ #define MPLOG_PREFIX "[Sub5] "
++#endif
+ #else
+ #define MPLOG_PREFIX "[Main] "
+ #endif
+diff --git a/Arduino15/packages/SPRESENSE/hardware/spresense/1.0.0/libraries/MemoryUtil/MemoryUtil.h b/Arduino15/packages/SPRESENSE/hardware/spresense/1.0.0/libraries/MemoryUtil/MemoryUtil.h
+index b88d33f..4709dd2 100644
+--- a/Arduino15/packages/SPRESENSE/hardware/spresense/1.0.0/libraries/MemoryUtil/MemoryUtil.h
++++ b/Arduino15/packages/SPRESENSE/hardware/spresense/1.0.0/libraries/MemoryUtil/MemoryUtil.h
+@@ -22,7 +22,7 @@
+ 
+ /* Define the following: Reduce memory usage to 1 tile (128 kbytes). */
+ 
+-//#define MEMORY_UTIL_TINY
++#define MEMORY_UTIL_TINY
+ 
+ #ifdef SUBCORE
+ #error "MemoryUtil library is NOT supported by SubCore."

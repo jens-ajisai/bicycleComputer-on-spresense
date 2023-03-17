@@ -1,0 +1,977 @@
+[DOCUMENT]
+TITLE: Bike Computer on Spresense Requirements
+OPTIONS:
+  REQUIREMENT_STYLE: Table
+
+[GRAMMAR]
+ELEMENTS:
+- TAG: REQUIREMENT
+  FIELDS:
+  - TITLE: UID
+    TYPE: String
+    REQUIRED: True
+  - TITLE: STATUS
+    TYPE: SingleChoice(New, Approved, Deleted, Deprecated, Rejected)
+    REQUIRED: True
+  - TITLE: VERIFICATION
+    TYPE: SingleChoice(Review, ManualTest, AutomaticTest, None, Design, IsTest)
+    REQUIRED: True
+  - TITLE: TAGS
+    TYPE: Tag
+    REQUIRED: False
+  - TITLE: STATEMENT
+    TYPE: String
+    REQUIRED: True
+  - TITLE: RATIONALE
+    TYPE: String
+    REQUIRED: True
+  - TITLE: COMMENT
+    TYPE: String
+    REQUIRED: False
+  - TITLE: REVIEW
+    TYPE: String
+    REQUIRED: False
+  - TITLE: REFS
+    TYPE: Reference(ParentReqReference, FileReference)
+    REQUIRED: False
+
+[FREETEXT]
+:Authors: 
+  Jens Ganzmann
+:Version: 1.0 of 2022/12/26 
+:Status: Released
+
+
+Purpose of this Document
+========================
+
+This document describes the requirements, derives specifications and takes care of tracing the coverage to the tests.
+
+This document shall
+
+* describe the features on a high level, track down to specific implementations and explain verification.
+* give the reader the reasons why features, architectures and specific implementations are like they are now.
+* give a clear picture of the progress of the implementation and what really works.
+
+Writing this document is practice for me
+
+* to formulate requirements in various granularity and think about which information should be a requirement or a design.
+* to describe the system across several hierarchies from requirements to detailed design.
+* to decide on the linkage and how to split up further down incl. answers to problems like
+
+  * how to get along with n:m relations?
+  * can I skip hierarchies?
+  * how to be sure coverage is complete?
+
+* to decide on a verification strategy that best fits each statement.
+* to try a tracing framework.
+* to get a feeling about how much documentation is appropriate for a project (This might be too much but it is meant as practice :) )
+
+Target Audience
+
+* Myself
+* Other developers that want to use the learnings and insights of this project to build similar.
+
+Comments
+========
+
+I decided not to make links to the implementation because
+
+* Most IDs will be covered across several locations inside a source code file or even across several files.
+* I missed making separate commits (to GIT) for each feature or fix in the beginning.
+
+A tag can be optional. It is used for the requirements that are rough ideas that are not feasible due to computational/memory constraints or complexity.
+
+As I am the only developer, the status is (mostly) automatically Approved.
+The development status shall be deferred by tracing.
+
+Definition of States
+
+- **New** requirement is newly created.
+- **In progress** requirement is being worked on. 
+- **Approved** The key stakeholder has agreed to the requirement and the developer has agreed that it is possible to create 
+- **Implemented** Code has been designed and is ready for review 
+- **Verified** The requirement is tested and is functioning correctly 
+- **Deleted** An approved requirement is deleted. An explanation is needed of why and by whom the decision was made to delete it. 
+- **Rejected** The requirement is not approved. The why and by whom it has been rejected are relevant. 
+- **Deprecated** The requirement is no longer in use and has been replaced by a new requirement. 
+
+[/FREETEXT]
+
+[SECTION]
+TITLE: Requirements
+
+[SECTION]
+TITLE: System
+
+[REQUIREMENT]
+UID: REQ-SYSTEM-001
+STATUS: Approved
+VERIFICATION: Design
+STATEMENT: The system shall run on battery.
+RATIONALE: It will be used on a bicycle that has no power outlet.
+COMMENT: >>>
+This implies that it should be low power to extend battery life as much as possible.
+
+The battery shall power the system for at least 5 hours. With an 850 mAh batter an average of 170 mA is required.
+
+On power off the system shall last for 1 month. With an 850 mAh batter an average of 1.18 mA is required.
+<<<
+
+[REQUIREMENT]
+UID: REQ-SYSTEM-002
+STATUS: Approved
+VERIFICATION: Design
+STATEMENT: The battery shall be chargeable by a solar system
+RATIONALE: It will extend the battery life and in the best case reduce the need for charging in a separate place. It will also reduce the risk to run out of battery charge.
+COMMENT: >>>
+This implies that it should be low power. It would be best if the consumption is lower than the consumption.
+<<<
+
+[REQUIREMENT]
+UID: REQ-SYSTEM-003
+STATUS: Approved
+VERIFICATION: Design
+STATEMENT: The system shall run smoothly without noticeable freezes.
+RATIONALE: As each core has only limited computational power and several functionalities are running in parallel, to reduce the risk of one task blocking others and stalling the system visibly to the user, distribute calculations across cores.
+COMMENT: >>>
+All CPU cores shall be used efficiently. Threads shall be used.
+
+Short-running tasks that do not significantly block others do not need to be moved to other cores to reduce complexity.
+
+Candidates are sensor processing, connectivity and rendering.
+<<<
+
+[REQUIREMENT]
+UID: REQ-SYSTEM-006
+STATUS: Approved
+VERIFICATION: Design
+STATEMENT: The system shall be low power.
+RATIONALE: Since running on battery, low power features shall extend available time per charge.
+COMMENT: >>>
+Use low-power features like a reduced clock and sleep modes.
+<<<
+REFS:
+- TYPE: Parent
+  VALUE: REQ-SYSTEM-001
+
+[REQUIREMENT]
+UID: REQ-SYSTEM-007
+STATUS: Approved
+VERIFICATION: Design
+STATEMENT: The system (event loop) shall not be blocked by API calls that just wait or that are long-running by intensive calculations.
+RATIONALE: As many modules are running in parallel, one module may not block in a way the user recognized a frozen system.
+COMMENT: >>>
+This applies specifically to network communication. As Arduino libraries might use blocking delay() calls, make sure nothing unnecessarily blocks the system.
+<<<
+REFS:
+- TYPE: Parent
+  VALUE: REQ-SYSTEM-003
+
+[REQUIREMENT]
+UID: REQ-SYSTEM-008
+STATUS: Approved
+VERIFICATION: Design
+STATEMENT: The system shall protect the user's privacy from tracking.
+RATIONALE: A basic requirement nowadays.
+COMMENT: >>>
+The BLE address requires protection.
+<<<
+REFS:
+- TYPE: Parent
+  VALUE: REQ-SYSTEM-003
+
+[REQUIREMENT]
+UID: REQ-SYSTEM-009
+STATUS: Approved
+VERIFICATION: Design
+STATEMENT: The system shall give access to the SD card via USB MSC.
+RATIONALE: To avoid the need to remove the SD card physically.
+COMMENT: Yet it is required to attach a USB cable to the micro-USB port on the extension board.
+
+[REQUIREMENT]
+UID: REQ-SYSTEM-010
+STATUS: Approved
+VERIFICATION: Design
+STATEMENT: A dedicated module shall control the lifetime of all other modules.
+RATIONALE: Some modules have dependencies, so define the order of startup. Also, modules need power and resources, so activate only necessary modules.
+
+[/SECTION]
+
+[SECTION]
+TITLE: Remote Access
+
+[REQUIREMENT]
+UID: REQ-REMOTE-001
+STATUS: Approved
+VERIFICATION: Design
+STATEMENT: The System shall be connected remotely to be able to receive commands.
+RATIONALE: Remote commands are used to retrieve information about the surroundings like camera or audio data.
+COMMENT: >>>
+Take into account that there is no public IP available for the cheap SIM plans.
+<<<
+
+[REQUIREMENT]
+UID: REQ-REMOTE-002
+STATUS: Approved
+VERIFICATION: Design
+STATEMENT: Status information shall be sent periodically status information to the cloud.
+RATIONALE: It should be aggregated for further analysis and to have information for anti-theft.
+COMMENT: >>>
+Data could be if feasible camera images, audio snippets and status information.
+<<<
+
+[REQUIREMENT]
+UID: REQ-REMOTE-003
+STATUS: Approved
+VERIFICATION: Design
+STATEMENT: GNSS information shall be sent to the cloud for each significant update.
+RATIONALE: It should be aggregated for further analysis and to have information for anti-theft.
+COMMENT: A significant update can be realized by a geo fence
+
+[REQUIREMENT]
+UID: REQ-REMOTE-004
+STATUS: Approved
+VERIFICATION: Design
+STATEMENT: Video shall be streamed to the cloud
+RATIONALE: Used for the anti-theft feature.
+COMMENT: >>>
+It might not be achievable due to device or connection constraints.
+The video can be low resolution, low frame rate. The cost and limitations of the LTE connection shall be considered.
+<<<
+
+[REQUIREMENT]
+UID: REQ-REMOTE-005
+STATUS: Approved
+VERIFICATION: Design
+STATEMENT: Audio shall be streamed to the cloud
+RATIONALE: Used for the anti-theft feature.
+COMMENT: >>>
+It might not be achievable due to device or connection constraints.
+
+Audio needs good compression due to the LTE connection. If not feasible, snippets can be considered.
+<<<
+REVIEW: Missing Coverage
+
+[/SECTION]
+
+[SECTION]
+TITLE: Recording
+
+[REQUIREMENT]
+UID: REQ-REC-001
+STATUS: Approved
+VERIFICATION: Design
+STATEMENT: Persist a camera image on request onto an SD Card
+RATIONALE: To be used for documentation and memories of the trip
+COMMENT: >>>
+Try the best quality.
+<<<
+
+[REQUIREMENT]
+UID: REQ-REC-002
+STATUS: Approved
+VERIFICATION: Design
+STATEMENT: Persist a video on request onto an SD Card
+RATIONALE: To be used for documentation and memories of the trip
+COMMENT: >>>
+Try the best quality.
+<<<
+
+[REQUIREMENT]
+UID: REQ-REC-003
+STATUS: Approved
+VERIFICATION: Design
+STATEMENT: Persist an audio recording on request onto an SD Card
+RATIONALE: To be used for documentation and memories of the trip
+COMMENT: >>>
+Try the best quality.
+<<<
+
+[REQUIREMENT]
+UID: REQ-REC-004
+STATUS: Approved
+VERIFICATION: Design
+STATEMENT: Persist status data periodically onto SD Card
+RATIONALE: This includes GNSS data and other data for debugging.
+COMMENT: >>>
+Consider a frequency that makes sense.
+<<<
+
+[/SECTION]
+
+[SECTION]
+TITLE: Anti Theft
+
+[COMPOSITE_REQUIREMENT]
+UID: REQ-THEFT-001
+STATUS: Approved
+VERIFICATION: Design
+STATEMENT: The system shall detect theft by combining sensor input and connectivity status.
+RATIONALE: A combination is required to reduce false positives.
+COMMENT: >>>
+Sensors could be a camera, microphone, IMU, or GNSS.
+Connectivity could be Bluetooth to detect your smartphone.
+<<<
+
+[REQUIREMENT]
+UID: REQ-THEFT-001-01
+STATUS: Approved
+VERIFICATION: Design
+STATEMENT: A geofence shall be used to detect unexpected movement to a new location.
+RATIONALE: While being at home or doing a break, the bicycle does not move. Therefore monitor not to exit a small area around the parking spot.
+COMMENT: >>>
+Define the states of the trip to determine when the bike shall not move. Examples would be at home, during a trip, or taking a break.
+<<<
+REFS:
+- TYPE: Parent
+  VALUE: REQ-THEFT-001
+
+[REQUIREMENT]
+UID: REQ-THEFT-001-02
+STATUS: Approved
+VERIFICATION: Design
+STATEMENT: A gyroscope shall be used to detect movement.
+RATIONALE: Exiting a geofence is already late, so combine the anti-theft detecting with any movements.
+COMMENT: >>>
+Define the states of the trip to determine when the bike shall not move. Examples would be at home, during a trip, or taking a break.
+<<<
+REFS:
+- TYPE: Parent
+  VALUE: REQ-THEFT-001
+
+[REQUIREMENT]
+UID: REQ-THEFT-001-03
+STATUS: Approved
+VERIFICATION: Design
+STATEMENT: The anti-theft module shall detect the mobile phone nearby using Bluetooth to determine if a movement shall cause an alarm.
+RATIONALE: Smart logic is required to avoid false alarms and detect theft quickly.
+COMMENT: >>>
+Define the states of the trip to determine when the bike shall not move. Examples would be at home, during a trip, or taking a break.
+Without a mobile phone, it is hard to know if you are making a break or if the bike is stored at home.
+<<<
+REFS:
+- TYPE: Parent
+  VALUE: REQ-THEFT-001
+
+[REQUIREMENT]
+UID: REQ-THEFT-001-04
+STATUS: Deprecated
+VERIFICATION: Design
+STATEMENT: The anti-theft module shall use camera images for theft detection.
+RATIONALE: Smart logic is required to avoid false alarms and detect theft quickly.
+COMMENT: >>>
+Define the states of the trip to determine when the bike shall not move. Examples would be at home, during a trip, or taking a break.
+Without a mobile phone, it is hard to know if you are making a break or if the bike is stored at home.
+<<<
+REFS:
+- TYPE: Parent
+  VALUE: REQ-THEFT-001
+
+[/COMPOSITE_REQUIREMENT]
+
+[REQUIREMENT]
+UID: REQ-THEFT-002
+STATUS: Approved
+VERIFICATION: Design
+STATEMENT: The system shall not output any traces of being on in anti-theft detection mode.
+RATIONALE: It shall not show that any anti-theft system is running.
+COMMENT: >>>
+This means the display shall be off and no LEDs on.
+<<<
+
+[/SECTION]
+
+[SECTION]
+TITLE: Cloud Data Augmentation
+
+[REQUIREMENT]
+UID: REQ-AUG-001
+STATUS: Approved
+VERIFICATION: Design
+STATEMENT: The cloud data augmentation module shall provide nearby sightseen information to display it.
+RATIONALE: Use the LTE connection to enrich local sensors with cloud data to increase user value.
+COMMENT: >>>
+For the beginning start with ice cream shops.
+<<<
+
+[REQUIREMENT]
+UID: REQ-AUG-002
+STATUS: Approved
+VERIFICATION: Design
+STATEMENT: The cloud data augmentation module shall warn for rain using weather data.
+RATIONALE: Use the LTE connection to enrich local sensors with cloud data to increase user value.
+COMMENT: >>>
+In the beginning, just show sunny or rainy.
+<<<
+
+[/SECTION]
+
+[SECTION]
+TITLE: Accident Recognition
+
+[REQUIREMENT]
+UID: REQ-ACC-001
+STATUS: Rejected
+VERIFICATION: Design
+STATEMENT: On fall detection an alarm message shall be sent into the cloud.
+RATIONALE: The 
+COMMENT: >>>
+Detecting a fall is too complex and testing is not realistic.
+<<<
+
+[/SECTION]
+
+[SECTION]
+TITLE: Bike Computer
+
+[COMPOSITE_REQUIREMENT]
+UID: REQ-BIKE-001
+STATUS: Approved
+VERIFICATION: Design
+STATEMENT: Collect sensor data from the bicycle.
+RATIONALE: To display it on the screen during the ride and for later analysis.
+COMMENT: >>>
+Start with a heart rate sensor. Later other sensors like pedal speed can be added.
+<<<
+
+[REQUIREMENT]
+UID: REQ-BIKE-001-01
+STATUS: Approved
+VERIFICATION: Design
+STATEMENT: Collect heart rate data via a BLE heart rate sensor.
+RATIONALE: To display it on the screen during the ride and for later analysis.
+COMMENT: >>>
+Use the generic heart rate profile.
+<<<
+REFS:
+- TYPE: Parent
+  VALUE: REQ-BIKE-001
+
+[/COMPOSITE_REQUIREMENT]
+
+[REQUIREMENT]
+UID: REQ-BIKE-002
+STATUS: Approved
+VERIFICATION: Design
+STATEMENT: Detect deceleration to show it as a breaking light.
+RATIONALE: Increase safety by showing others the speed status.
+COMMENT: >>>
+Start with a simulation of the light.
+<<<
+REVIEW: Missing Coverage
+
+[REQUIREMENT]
+UID: REQ-BIKE-003
+STATUS: Approved
+VERIFICATION: Design
+STATEMENT: Feedback on the road quality shall be sent into the cloud.
+RATIONALE: To support further planning and to protect the own bicycle.
+REVIEW: Missing Coverage
+
+[/SECTION]
+
+[SECTION]
+TITLE: User Interface
+
+[REQUIREMENT]
+UID: REQ-UI-000
+STATUS: Approved
+VERIFICATION: Design
+STATEMENT: The user shall get feedback from a user screen.
+RATIONALE: 
+
+[REQUIREMENT]
+UID: REQ-UI-001
+STATUS: Approved
+VERIFICATION: Design
+STATEMENT: The screen shall show the live preview of the camera. A frame rate of > 5fps is desired.
+RATIONALE: 
+
+[REQUIREMENT]
+UID: REQ-UI-002
+STATUS: Approved
+VERIFICATION: Design
+STATEMENT: The live image shall be instantly updated. A frame rate of > 5fps is desired.
+RATIONALE: 
+
+[REQUIREMENT]
+UID: REQ-UI-003
+STATUS: Approved
+VERIFICATION: Design
+STATEMENT: The screen shall show the battery status
+RATIONALE: 
+
+[REQUIREMENT]
+UID: REQ-UI-004
+STATUS: Approved
+VERIFICATION: Design
+STATEMENT: The screen shall show the bicycle sensor information heart rate
+RATIONALE: 
+
+[REQUIREMENT]
+UID: REQ-UI-005
+STATUS: Approved
+VERIFICATION: Design
+STATEMENT: The screen shall show the bicycle sensor information speed
+RATIONALE: 
+
+[REQUIREMENT]
+UID: REQ-UI-006
+STATUS: Approved
+VERIFICATION: Design
+STATEMENT: The screen shall show the local time
+RATIONALE: 
+
+[REQUIREMENT]
+UID: REQ-UI-007
+STATUS: Approved
+VERIFICATION: Design
+STATEMENT: The screen shall show the connection status of BLE.
+RATIONALE: 
+
+[REQUIREMENT]
+UID: REQ-UI-008
+STATUS: Approved
+VERIFICATION: Design
+STATEMENT: The screen shall show the connection status of LTE.
+RATIONALE: 
+
+[REQUIREMENT]
+UID: REQ-UI-009
+STATUS: Approved
+VERIFICATION: Design
+STATEMENT: The screen shall show the connection status of GNSS.
+RATIONALE: 
+
+[REQUIREMENT]
+UID: REQ-UI-010
+STATUS: Approved
+VERIFICATION: Design
+STATEMENT: The screen shall show the Poi nearby and the direction towards it.
+RATIONALE: 
+
+[REQUIREMENT]
+UID: REQ-UI-011
+STATUS: Approved
+VERIFICATION: Design
+STATEMENT: The screen shall show a microphone when it is active.
+RATIONALE: 
+
+[REQUIREMENT]
+UID: REQ-UI-012
+STATUS: Approved
+VERIFICATION: Design
+STATEMENT: The screen shall show a phone icon when it is found nearby
+RATIONALE: 
+
+[REQUIREMENT]
+UID: REQ-UI-013
+STATUS: Approved
+VERIFICATION: Design
+STATEMENT: The screen shall show a rain icon if it will rain the next hour or else a sun.
+RATIONALE: 
+
+[COMPOSITE_REQUIREMENT]
+UID: REQ-UI-014
+STATUS: Approved
+VERIFICATION: Design
+STATEMENT: The screen shall show debug status on top of the screen.
+RATIONALE: 
+
+[REQUIREMENT]
+UID: REQ-UI-014-01
+STATUS: Approved
+VERIFICATION: Design
+STATEMENT: The screen shall show the IP.
+RATIONALE: 
+REFS:
+- TYPE: Parent
+  VALUE: REQ-UI-014
+
+[REQUIREMENT]
+UID: REQ-UI-014-02
+STATUS: Approved
+VERIFICATION: Design
+STATEMENT: The screen shall show the free memory of the SD card.
+RATIONALE: 
+REFS:
+- TYPE: Parent
+  VALUE: REQ-UI-014
+
+[REQUIREMENT]
+UID: REQ-UI-014-03
+STATUS: Approved
+VERIFICATION: Design
+STATEMENT: The screen shall show the GNSS position.
+RATIONALE: 
+REFS:
+- TYPE: Parent
+  VALUE: REQ-UI-014
+
+[REQUIREMENT]
+UID: REQ-UI-014-04
+STATUS: Approved
+VERIFICATION: Design
+STATEMENT: The screen shall show the shop name, distance and direction.
+RATIONALE: 
+REFS:
+- TYPE: Parent
+  VALUE: REQ-UI-014
+
+[REQUIREMENT]
+UID: REQ-UI-014-05
+STATUS: Approved
+VERIFICATION: Design
+STATEMENT: The screen shall show geofence events.
+RATIONALE: 
+REFS:
+- TYPE: Parent
+  VALUE: REQ-UI-014
+
+[REQUIREMENT]
+UID: REQ-UI-014-06
+STATUS: Approved
+VERIFICATION: Design
+STATEMENT: The screen shall show the firmware version.
+RATIONALE: 
+REFS:
+- TYPE: Parent
+  VALUE: REQ-UI-014
+
+[/COMPOSITE_REQUIREMENT]
+
+[REQUIREMENT]
+UID: REQ-UI-015
+STATUS: Approved
+VERIFICATION: Design
+STATEMENT: The screen shall show a message overlay on the screen
+RATIONALE: 
+COMMENT: >>>
+Content could be a BLE connection request, a remote message or a disaster notification.
+<<<
+REVIEW: Missing Coverage
+
+[REQUIREMENT]
+UID: REQ-UI-016
+STATUS: Approved
+VERIFICATION: Design
+STATEMENT: The screen shall show GNSS direction by an arrow.
+RATIONALE: 
+REFS:
+- TYPE: Parent
+  VALUE: REQ-UI-014
+
+[/SECTION]
+
+[SECTION]
+TITLE: Case
+
+[REQUIREMENT]
+UID: REQ-CASE-001
+STATUS: Approved
+VERIFICATION: Design
+STATEMENT: There shall be a stable case and mount onto the bike
+RATIONALE: There will be vibrations and shocks due to bad road quality.
+REVIEW: Missing Coverage
+
+[REQUIREMENT]
+UID: REQ-CASE-002
+STATUS: Approved
+VERIFICATION: Design
+STATEMENT: The case shall be rainproof.
+RATIONALE: There will be bad weather and the electrical circuit needs to be protected.
+REVIEW: Missing Coverage
+
+[REQUIREMENT]
+UID: REQ-CASE-003
+STATUS: Approved
+VERIFICATION: Design
+STATEMENT: The case needs to open to exchange the battery.
+RATIONALE: The battery needs to be replaced quickly if empty. 
+REVIEW: Missing Coverage
+
+[REQUIREMENT]
+UID: REQ-CASE-004
+STATUS: Approved
+VERIFICATION: Design
+STATEMENT: The SD card shall be accessible to remove it temporarily.
+RATIONALE: To copy data from the card or replace a full or defective card.
+REVIEW: Missing Coverage
+
+[REQUIREMENT]
+UID: REQ-CASE-005
+STATUS: Approved
+VERIFICATION: Design
+STATEMENT: The case shall not have sharp edges to prevent injuries.
+RATIONALE: 
+COMMENT: >>>
+Content could be a BLE connection request, a remote message or a disaster notification.
+<<<
+REVIEW: Missing Coverage
+
+[/SECTION]
+
+[SECTION]
+TITLE: Development
+
+[REQUIREMENT]
+UID: REQ-DEV-001
+STATUS: Approved
+VERIFICATION: Design
+STATEMENT: Simple logging shall be available via USB Serial.
+RATIONALE: Basic for debugging to investigate issues.
+
+[REQUIREMENT]
+UID: REQ-DEV-002
+STATUS: Approved
+VERIFICATION: Design
+STATEMENT: Logging shall be persisted for later retrieval to get information while being on the road.
+RATIONALE: It shall enable investigations when being on the road.
+COMMENT: >>>
+This could be logging onto an SD card, separate flash memory or sending it into the cloud.
+<<<
+REVIEW: Missing Coverage
+
+[REQUIREMENT]
+UID: REQ-DEV-003
+STATUS: Approved
+VERIFICATION: Design
+STATEMENT: The system shall have a shell interface to inject actions for testing.
+RATIONALE: To test parts separately a shell is valuable as modules like GNSS-triggered behaviour cannot be tested otherwise.
+
+[REQUIREMENT]
+UID: REQ-DEV-004
+STATUS: Approved
+VERIFICATION: Design
+STATEMENT: The system shall trigger 4 LEDs to indicate certain events for debugging.
+RATIONALE: This will be used to see (debug) events when no log can be retrieved. 
+
+[REQUIREMENT]
+UID: REQ-DEV-005
+STATUS: Approved
+VERIFICATION: Design
+STATEMENT: Expose the SD card on the host PC as USB mass storage.
+RATIONALE: This will save time to copy data to the PC
+REVIEW: Missing Coverage
+
+[REQUIREMENT]
+UID: REQ-DEV-006
+STATUS: Approved
+VERIFICATION: Design
+STATEMENT: The Arduino ecco system shall be used as much as possible.
+RATIONALE: This project is a test to see if using Arduino is quick and efficient without annoying blockers e.g. for debugging or testing.
+COMMENT: >>>
+It is still allowed to use partially the SDK in case of blockers, otherwise, a solution within the Arduino SDK shall be found.
+<<<
+REVIEW: Missing Coverage
+
+[REQUIREMENT]
+UID: REQ-DEV-007
+STATUS: Approved
+VERIFICATION: Design
+STATEMENT: Provide an interface to manually start and stop the GNSS module.
+RATIONALE: To restart the GNSS search after a timeout.
+COMMENT: Realised via events.
+
+[REQUIREMENT]
+UID: REQ-DEV-008
+STATUS: Approved
+VERIFICATION: Design
+STATEMENT: The system shall provide information on memory usage.
+RATIONALE: For debugging purposes.
+COMMENT: Includes memory tiles, heap memory and sd card memory.
+
+[REQUIREMENT]
+UID: REQ-DEV-009
+STATUS: Approved
+VERIFICATION: Design
+STATEMENT: The system shall print the boot cause at startup.
+RATIONALE: For debugging purposes.
+
+[REQUIREMENT]
+UID: REQ-DEV-010
+STATUS: Approved
+VERIFICATION: Design
+STATEMENT: The NSH shell shall be off by default, but activated on demand.
+RATIONALE: For debugging purposes.
+COMMENT: Not as useful as expected.
+
+[REQUIREMENT]
+UID: REQ-DEV-011
+STATUS: Approved
+VERIFICATION: Design
+STATEMENT: The system shall log the build date on startup.
+RATIONALE: For debugging purposes.
+
+[REQUIREMENT]
+UID: REQ-DEV-012
+STATUS: Approved
+VERIFICATION: Design
+STATEMENT: Provide Architectural Design.
+RATIONALE: None
+
+[/SECTION]
+
+[SECTION]
+TITLE: Next Steps Evaluation
+
+[REQUIREMENT]
+UID: REQ-NEXT-001
+STATUS: Rejected
+VERIFICATION: Design
+STATEMENT: Keyword speech recognition
+RATIONALE: Use AI to recognize speech commands.
+COMMENT: No memory is left to include this. The benefit-cost ratio is questionable.
+
+[REQUIREMENT]
+UID: REQ-NEXT-002
+STATUS: Rejected
+VERIFICATION: Design
+STATEMENT: Alexa integration
+RATIONALE: Would be very interesting.
+COMMENT: Not a core functionality of a bike computer. The effort is likely high so it would be another project.
+
+[REQUIREMENT]
+UID: REQ-NEXT-003
+STATUS: New
+VERIFICATION: Design
+STATEMENT: Audio feedback via buzzer
+RATIONALE: Simple way to add additional feedback.
+COMMENT: >>>
+As Spresense is capable of Hi-Res audio, real audio feedback e.g. with even voice is more appropriate. 
+Yet, using a buzzer means starting simply. 
+UX needs to be thought out to see what value is added.
+<<<
+
+[REQUIREMENT]
+UID: REQ-NEXT-004
+STATUS: Rejected
+VERIFICATION: Design
+STATEMENT: Audio event detection
+RATIONALE: One of the requests from the UX user research by interviews.
+COMMENT: >>>
+Idea was to recognize a sirene approaching from the back to give visual feedback. 
+Another idea was to recognize voices to detect human presence.
+Requires AI for which memory is not available.
+<<<
+
+[REQUIREMENT]
+UID: REQ-NEXT-005
+STATUS: Rejected
+VERIFICATION: Design
+STATEMENT: Human detection behind the handle by PIR
+RATIONALE: Need to think about this.
+COMMENT: Questionable if this works out. There will be always a detection of the driver.
+
+[REQUIREMENT]
+UID: REQ-NEXT-006
+STATUS: New
+VERIFICATION: Design
+STATEMENT: Receive a static map as an image and display it on the screen with
+RATIONALE: A map is much clearer than just having the direction by an arrow.
+COMMENT: Check about data usage, license, and performance. https://developers.google.com/maps/documentation/maps-static
+
+[REQUIREMENT]
+UID: REQ-NEXT-007
+STATUS: New
+VERIFICATION: Design
+STATEMENT: Switch to open weather map for the weather data.
+RATIONALE: Although the Yahoo! weather iOS app delivers precise and rich information, the API is somewhat limited. Additionally, all readers outside of Japan cannot use it.
+COMMENT: Something globally accessible might be better. 
+
+[/SECTION]
+
+[SECTION]
+TITLE: Out of Scope
+
+[REQUIREMENT]
+UID: REQ-NOT-001
+STATUS: Approved
+VERIFICATION: None
+STATEMENT: Out of scope
+RATIONALE: What this project should not do.
+COMMENT: >>>
+- firmware updates in the field
+- usage of a hardware debugger
+- software related statistics or traces
+- secure boot
+- strong encryption
+<<<
+
+[/SECTION]
+
+[/SECTION]
+
+[SECTION]
+TITLE: High-level design
+
+[FRAGMENT_FROM_FILE]
+FILE: ../01_design/Design.ssec
+
+[FRAGMENT_FROM_FILE]
+FILE: ../01_design/Design_audio.ssec
+
+[FRAGMENT_FROM_FILE]
+FILE: ../01_design/Design_augmentation.ssec
+
+[FRAGMENT_FROM_FILE]
+FILE: ../01_design/Design_gnss.ssec
+
+[FRAGMENT_FROM_FILE]
+FILE: ../01_design/Design_imu.ssec
+
+[FRAGMENT_FROM_FILE]
+FILE: ../01_design/Design_lte.ssec
+
+[FRAGMENT_FROM_FILE]
+FILE: ../01_design/Design_mqtt.ssec
+
+[FRAGMENT_FROM_FILE]
+FILE: ../01_design/Design_rec.ssec
+
+[FRAGMENT_FROM_FILE]
+FILE: ../01_design/Design_status.ssec
+
+[FRAGMENT_FROM_FILE]
+FILE: ../01_design/Design_system.ssec
+
+[FRAGMENT_FROM_FILE]
+FILE: ../01_design/Design_theft.ssec
+
+[FRAGMENT_FROM_FILE]
+FILE: ../01_design/Design_ui.ssec
+
+[FRAGMENT_FROM_FILE]
+FILE: ../01_design/Design_ble.ssec
+
+[/SECTION]
+
+[SECTION]
+TITLE: Memo
+
+[FREETEXT]
+
+Proposed Content Structure for High Level Design
+
+* Purpose (Goals)
+* Architectural Decisions
+* Assumptions
+* Purpose
+* Relation to other Modules (Context)
+* Structural View (Component Diagram, External Dependencies)
+* Behavioural View (Sequence, Activity Diagram)
+* Configuration
+* State Diagram?
+* Use Case Diagram?
+* Open Issues
+
+Next steps
+
+* Write the SWAD.
+* How to be sure that a requirement is fully covered?
+* Write what insights are gained by writing requirements with tracing.
+
+[/FREETEXT]
+
+[/SECTION]

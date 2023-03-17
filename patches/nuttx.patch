@@ -1,0 +1,164 @@
+diff --git a/arch/arm/src/Makefile b/arch/arm/src/Makefile
+index d3fdf2e0c4..d044faf26a 100644
+--- a/arch/arm/src/Makefile
++++ b/arch/arm/src/Makefile
+@@ -151,6 +151,14 @@ $(KBIN): $(OBJS)
+ board$(DELIM)libboard$(LIBEXT):
+ 	$(Q) $(MAKE) -C board libboard$(LIBEXT) EXTRAFLAGS="$(EXTRAFLAGS)"
+ 
++# This is used!!!!
++EXTRA_LIBS += -lopus
++EXTRA_LIBS += -loggz
++EXTRA_LIBS += -logg
++EXTRA_LIBPATHS += -L__REPLACE_ME_WITH_YOUR_PROJECT_PATH__/ext/opus/out/lib
++EXTRA_LIBPATHS += -L__REPLACE_ME_WITH_YOUR_PROJECT_PATH__/ext/liboggz/out/lib
++EXTRA_LIBPATHS += -L__REPLACE_ME_WITH_YOUR_PROJECT_PATH__/ext/libogg/out/lib
++
+ nuttx$(EXEEXT): $(HEAD_OBJ) board$(DELIM)libboard$(LIBEXT)
+ 	$(Q) echo "LD: nuttx"
+ 	$(Q) $(LD) --entry=__start $(LDFLAGS) $(LIBPATHS) $(EXTRA_LIBPATHS) \
+diff --git a/arch/arm/src/cxd56xx/cxd56_cpu1signal.c b/arch/arm/src/cxd56xx/cxd56_cpu1signal.c
+index 1dcccc60e4..001837ad02 100644
+--- a/arch/arm/src/cxd56xx/cxd56_cpu1signal.c
++++ b/arch/arm/src/cxd56xx/cxd56_cpu1signal.c
+@@ -37,7 +37,7 @@
+  ****************************************************************************/
+ 
+ #ifndef CONFIG_CXD56CPU1_WORKER_STACKSIZE
+-#  define CONFIG_CXD56CPU1_WORKER_STACKSIZE 1024
++#  define CONFIG_CXD56CPU1_WORKER_STACKSIZE 2048
+ #endif
+ 
+ #ifndef CONFIG_CXD56CPU1_WORKER_THREAD_PRIORITY
+@@ -196,6 +196,10 @@ int cxd56_cpu1siginit(uint8_t sigtype, FAR void *data)
+                     CONFIG_CXD56CPU1_WORKER_THREAD_PRIORITY,
+                     CONFIG_CXD56CPU1_WORKER_STACKSIZE, cxd56cpu1_worker,
+                     (FAR char * const *) NULL);
++#ifdef CONFIG_SMP
++    cpu_set_t cpuset = 1 << 5;
++    pthread_setaffinity_np(pid, sizeof(cpu_set_t), &cpuset);
++#endif
+ 
+   if (pid < 0)
+     {
+diff --git a/arch/arm/src/cxd56xx/cxd56_farapi.c b/arch/arm/src/cxd56xx/cxd56_farapi.c
+index aaddaa83c1..b02778f7f2 100644
+--- a/arch/arm/src/cxd56xx/cxd56_farapi.c
++++ b/arch/arm/src/cxd56xx/cxd56_farapi.c
+@@ -190,26 +190,23 @@ void farapi_main(int id, void *arg, struct modulelist_s *mlist)
+   int ret;
+ 
+ #ifdef CONFIG_SMP
+-  int cpu = up_cpu_index();
+   static cpu_set_t cpuset0;
++  int cpu = up_cpu_index();
++  /* Save the current cpuset */
+ 
+-  if (0 != cpu)
+-    {
+-      /* Save the current cpuset */
+-
+-      sched_getaffinity(getpid(), sizeof(cpu_set_t), &cpuset0);
+-
+-      /* Assign the current task to cpu0 */
++  sched_getaffinity(getpid(), sizeof(cpu_set_t), &cpuset0);
+ 
+-      cpu_set_t cpuset1;
+-      CPU_ZERO(&cpuset1);
+-      CPU_SET(0, &cpuset1);
+-      sched_setaffinity(getpid(), sizeof(cpu_set_t), &cpuset1);
++  /* Assign the current task to cpu0 */
+ 
+-      /* NOTE: a workaround to finish rescheduling */
++  cpu_set_t cpuset1;
++  CPU_ZERO(&cpuset1);
++  CPU_SET(0, &cpuset1);
++  sched_setaffinity(getpid(), sizeof(cpu_set_t), &cpuset1);
+ 
+-      nxsig_usleep(10 * 1000);
+-    }
++  while(up_cpu_index() != 0) {
++    nxsig_usleep(10 * 1000);
++    printf("!!!!!! Wrong cpu id %d\n", up_cpu_index());
++  }
+ #endif
+ 
+ #ifdef CONFIG_CXD56_GNSS_HOT_SLEEP
+@@ -225,7 +222,9 @@ void farapi_main(int id, void *arg, struct modulelist_s *mlist)
+         }
+     }
+ #endif
++  struct tcb_s *rtcb = this_task();
+ 
++//  printf("#E#%d-%d-%s->%d,%d,%d=%08x###\n", sched_getcpu(), getpid(), rtcb->name, mlist->cpuno, mlist->mbxid, id, arg);
+   farapi_semtake(&g_farlock);
+ 
+   api = &msg.u.api;
+@@ -267,16 +266,15 @@ void farapi_main(int id, void *arg, struct modulelist_s *mlist)
+ 
+ err:
+   nxsem_post(&g_farlock);
++ // printf("###%d-%d#R#\n", sched_getcpu(), getpid());
+ 
+ #ifdef CONFIG_SMP
+-  if (0 != cpu)
+-    {
+-      /* Restore the cpu affinity */
+-
+-      sched_setaffinity(getpid(), sizeof(cpu_set_t), &cpuset0);
++    /* Restore the cpu affinity */
+ 
+-      /* NOTE: a workaround to finish rescheduling */
++    sched_setaffinity(getpid(), sizeof(cpu_set_t), &cpuset0);
+ 
++    /* NOTE: a workaround to finish rescheduling */
++    if(cpu != 0) {
+       nxsig_usleep(10 * 1000);
+     }
+ #endif
+diff --git a/drivers/modem/alt1250/alt1250.c b/drivers/modem/alt1250/alt1250.c
+index 5ddac835f2..63f19de2b0 100644
+--- a/drivers/modem/alt1250/alt1250.c
++++ b/drivers/modem/alt1250/alt1250.c
+@@ -1062,6 +1062,10 @@ static int alt1250_open(FAR struct file *filep)
+       else
+         {
+           pthread_setname_np(dev->recvthread, "altcom_recvthread");
++#ifdef CONFIG_SMP
++    cpu_set_t cpuset = 1 << 1;
++    pthread_setaffinity_np(dev->recvthread, sizeof(cpu_set_t), &cpuset);
++#endif          
+         }
+     }
+ 
+diff --git a/tools/Config.mk b/tools/Config.mk
+index 6adbebf21a..3c6b2e8e08 100644
+--- a/tools/Config.mk
++++ b/tools/Config.mk
+@@ -256,6 +256,8 @@ endef
+ # '<filename>.c_CFLAGS += <options>' may also be used, as an example, to
+ # change the options used with the single file <filename>.c
+ 
++# This is used!!!
++# @echo "CFLAGS: $(CFLAGS)"
+ define COMPILE
+ 	@echo "CC: $1"
+ 	$(Q) $(CC) -c $(CFLAGS) $($(strip $1)_CFLAGS) $1 -o $2
+@@ -329,7 +331,7 @@ endef
+ #   CONFIG_WINDOWS_NATIVE - Defined for a Windows native build
+ 
+ define ARCHIVE_ADD
+-	@echo "AR (add): ${shell basename $(1)} $(2)"
++	@echo "AR (add): ${shell basename $(1)}"
+ 	$(Q) $(AR) $1 $(2)
+ endef
+ 
+@@ -337,7 +339,7 @@ endef
+ # created from scratch
+ 
+ define ARCHIVE
+-	@echo "AR (create): ${shell basename $(1)} $(2)"
++	@echo "AR (create): ${shell basename $(1)}"
+ 	$(Q) $(RM) $1
+ 	$(Q) $(AR) $1 $(2)
+ endef

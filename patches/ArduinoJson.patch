@@ -1,0 +1,17 @@
+diff --git a/src/ArduinoJson/Polyfills/pgmspace_generic.hpp b/src/ArduinoJson/Polyfills/pgmspace_generic.hpp
+index d9e964b8..50ce3ef0 100644
+--- a/src/ArduinoJson/Polyfills/pgmspace_generic.hpp
++++ b/src/ArduinoJson/Polyfills/pgmspace_generic.hpp
+@@ -12,7 +12,11 @@ namespace ARDUINOJSON_NAMESPACE {
+ 
+ template <typename T>
+ typename enable_if<is_pointer<T>::value, T>::type pgm_read(const void* p) {
+-  return reinterpret_cast<T>(pgm_read_ptr(p));
++#if  defined(ARDUINO_ARCH_SPRESENSE)
++   return reinterpret_cast<T>(p);
++ #else
++   return reinterpret_cast<T>(pgm_read_ptr(p));
++ #endif
+ }
+ 
+ template <typename T>

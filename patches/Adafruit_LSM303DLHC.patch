@@ -1,0 +1,41 @@
+diff --git a/Adafruit_LSM303_U.cpp b/Adafruit_LSM303_U.cpp
+index 26c9202..0d629f6 100644
+--- a/Adafruit_LSM303_U.cpp
++++ b/Adafruit_LSM303_U.cpp
+@@ -102,7 +102,7 @@ void Adafruit_LSM303_Accel_Unified::read()
+   Wire.requestFrom((byte)LSM303_ADDRESS_ACCEL, (byte)6);
+ 
+   // Wait around until enough data is available
+-  while (Wire.available() < 6);
++  while (Wire.available() < 6) {};
+ 
+   #if ARDUINO >= 100
+     uint8_t xlo = Wire.read();
+@@ -286,7 +286,7 @@ void Adafruit_LSM303_Mag_Unified::read()
+   Wire.requestFrom((byte)LSM303_ADDRESS_MAG, (byte)6);
+ 
+   // Wait around until enough data is available
+-  while (Wire.available() < 6);
++  while (Wire.available() < 6) {};
+ 
+   // Note high before low (different than accel)
+   #if ARDUINO >= 100
+diff --git a/Adafruit_LSM303_U.h b/Adafruit_LSM303_U.h
+index 512671a..5c920c7 100644
+--- a/Adafruit_LSM303_U.h
++++ b/Adafruit_LSM303_U.h
+@@ -160,11 +160,12 @@ class Adafruit_LSM303_Accel_Unified : public Adafruit_Sensor
+ 
+     lsm303AccelData raw;   // Last read accelerometer data will be available here
+ 
++    void write8(byte address, byte reg, byte value);
++    byte read8(byte address, byte reg);
++
+   private:
+     int32_t         _sensorID;
+ 
+-    void write8(byte address, byte reg, byte value);
+-    byte read8(byte address, byte reg);
+     void read(void);
+ };
+ 

@@ -1,0 +1,701 @@
+diff --git a/src/local/BLELocalCharacteristic.h b/src/local/BLELocalCharacteristic.h
+index 331cdd5..a9b6693 100644
+--- a/src/local/BLELocalCharacteristic.h
++++ b/src/local/BLELocalCharacteristic.h
+@@ -76,7 +76,6 @@ protected:
+ 
+ private:
+   uint8_t  _properties;
+-  uint8_t  _permissions;
+   int      _valueSize;
+   uint8_t* _value;
+   uint16_t  _valueLength;
+@@ -88,6 +87,8 @@ private:
+   bool _written;
+ 
+   uint16_t _cccdValue;
++  uint8_t  _permissions;
++
+   BLELinkedList<BLELocalDescriptor*> _descriptors;
+ 
+   BLECharacteristicEventHandler _eventHandlers[BLECharacteristicEventLast];
+diff --git a/src/local/BLELocalDevice.cpp b/src/local/BLELocalDevice.cpp
+index 91cc869..081a456 100644
+--- a/src/local/BLELocalDevice.cpp
++++ b/src/local/BLELocalDevice.cpp
+@@ -22,6 +22,7 @@
+ #include "utility/GAP.h"
+ #include "utility/GATT.h"
+ #include "utility/L2CAPSignaling.h"
++#include "utility/btct.h"
+ 
+ #include "BLELocalDevice.h"
+ 
+@@ -84,6 +85,10 @@ int BLELocalDevice::begin()
+   pinMode(NINA_CTS, INPUT);
+ #endif
+ 
++#if defined(ARDUINO_ARCH_SPRESENSE)
++  delay(500);
++#endif
++
+   if (!HCI.begin()) {
+     end();
+     return 0;
+@@ -125,61 +130,70 @@ int BLELocalDevice::begin()
+     return 0;
+   }
+ 
+-  /// The HCI should allow automatic address resolution.
+-
+-  // // If we have callbacks to remember bonded devices:
+-  // if(HCI._getIRKs!=0){
+-  //   uint8_t nIRKs = 0;
+-  //   uint8_t** BADDR_Type = new uint8_t*;
+-  //   uint8_t*** BADDRs = new uint8_t**;
+-  //   uint8_t*** IRKs = new uint8_t**;
+-  //   uint8_t* memcheck;
+-
+-
+-  //   if(!HCI._getIRKs(&nIRKs, BADDR_Type, BADDRs, IRKs)){
+-  //     Serial.println("error");
+-  //   }
+-  //   for(int i=0; i<nIRKs; i++){
+-  //     Serial.print("Baddr type: ");
+-  //     Serial.println((*BADDR_Type)[i]);
+-  //     Serial.print("BADDR:");
+-  //     for(int k=0; k<6; k++){
+-  //       Serial.print(", 0x");
+-  //       Serial.print((*BADDRs)[i][k],HEX);
+-  //     }
+-  //     Serial.println();
+-  //     Serial.print("IRK:");
+-  //     for(int k=0; k<16; k++){
+-  //       Serial.print(", 0x");
+-  //       Serial.print((*IRKs)[i][k],HEX);
+-  //     }
+-  //     Serial.println();
+-
+-  //     // save this 
+-  //     uint8_t zeros[16];
+-  //     for(int k=0; k<16; k++) zeros[15-k] = 0;
+-      
+-  //     // HCI.leAddResolvingAddress((*BADDR_Type)[i],(*BADDRs)[i],(*IRKs)[i], zeros);
+-
+-  //     delete[] (*BADDRs)[i];
+-  //     delete[] (*IRKs)[i];
+-  //   }
+-  //   delete[] (*BADDR_Type);
+-  //   delete BADDR_Type;
+-  //   delete[] (*BADDRs);
+-  //   delete BADDRs;
+-  //   delete[] (*IRKs);
+-  //   delete IRKs;
+-    
+-  //   memcheck = new uint8_t[1];
+-  //   Serial.print("nIRK location: 0x");
+-  //   Serial.println((int)memcheck,HEX);
+-  //   delete[] memcheck;
+-
+-  // }
++   // The HCI should allow automatic address resolution.
++
++   // If we have callbacks to remember bonded devices:
++   if(HCI._getIRKs!=0){
++     uint8_t nIRKs = 0;
++     uint8_t** BADDR_Type = new uint8_t*;
++     uint8_t*** BADDRs = new uint8_t**;
++     uint8_t*** IRKs = new uint8_t**;
++     uint8_t* memcheck;
++
++
++     if(!HCI._getIRKs(&nIRKs, BADDR_Type, BADDRs, IRKs)){
++       Serial.println("error");
++     }
++     for(int i=0; i<nIRKs; i++){
++//       Serial.print("Baddr type: ");
++//       Serial.println((*BADDR_Type)[i]);
++//       Serial.print("BADDR:");
++//       for(int k=0; k<6; k++){
++//         Serial.print(", 0x");
++//         Serial.print((*BADDRs)[i][k],HEX);
++//       }
++//       Serial.println();
++//       Serial.print("IRK:");
++//       for(int k=0; k<16; k++){
++//         Serial.print(", 0x");
++//         Serial.print((*IRKs)[i][k],HEX);
++//       }
++//       Serial.println();
++//       printf("leAddResolvingAddress\n\n");
++       HCI.leAddResolvingAddress((*BADDR_Type)[i],(*BADDRs)[i],(*IRKs)[i], ATT.localIRK);
++
++       delete[] (*BADDRs)[i];
++       delete[] (*IRKs)[i];
++     }
++     delete[] (*BADDR_Type);
++     delete BADDR_Type;
++     delete[] (*BADDRs);
++     delete BADDRs;
++     delete[] (*IRKs);
++     delete IRKs;
++  
++     memcheck = new uint8_t[1];
++//     Serial.print("nIRK location: 0x");
++//     Serial.println((int)memcheck,HEX);
++     delete[] memcheck;
++
++   }
++   
++  HCI.leSetAddressResolutionEnable(0x01);
+ 
+   GATT.begin();
+ 
++#if defined(ARDUINO_ARCH_SPRESENSE)
++  initRandomAddress();
++  static uint8_t phySetting[] = {0x00, 0x01, 0x01};
++  HCI.sendCommand(OGF_LE_CTL << 10 | 0x31, 3, phySetting);
++
++//  static uint8_t staticAddr[] = {0xD3, 0x7E, 0x81, 0x50, 0x46, 0xCD};
++//  uint16_t SDC_HCI_OPCODE_CMD_VS_ZEPHYR_WRITE_BD_ADDR = 0xfc06;
++  
++//  HCI.sendCommand(SDC_HCI_OPCODE_CMD_VS_ZEPHYR_WRITE_BD_ADDR, 6, staticAddr);
++#endif
++
+   return 1;
+ }
+ 
+@@ -284,6 +298,76 @@ bool BLELocalDevice::setLocalName(const char *localName)
+   return _scanResponseData.setLocalName(localName);  
+ }
+ 
++bool BLELocalDevice::initRandomAddress()
++{
++  // The given address shall be used when the device itself has no address.
++////  memcpy(HCI.localAddr, address, 6);
++
++  // Calculate a random address according to 
++  // BLUETOOTH CORE SPECIFICATION Version 5.3 | Vol 6, Part B
++  // 1.3.2.2 Private device address generation
++
++  // leRand generates a 64bit key. We only use the first 24bit.
++  uint8_t r[16] = {0};
++  HCI.leRand(r);
++
++  r[2] |= 0x40;
++  r[2] &= 0x7F;
++
++  uint8_t hash[3];
++
++  HCI.readBdAddr();
++  btct.ah(ATT.localIRK, r, hash);
++
++  memcpy(HCI.localRandResolvalbeAddr, hash, 3);
++  memcpy(&HCI.localRandResolvalbeAddr[3], r, 3);
++
++  HCI.ownBdaddrType = BT_ADDR_LE_RANDOM;
++
++  btct.testAh();
++
++  uint8_t hashresult[3];
++  btct.ah(ATT.localIRK, HCI.localRandResolvalbeAddr, hashresult);
++//  Serial.println("Init random address:");
++//  Serial.print("rand       : ");  btct.printBytes(r,3);
++//  Serial.print("hash       : ");  btct.printBytes(hash,3);
++//  Serial.print("randomAddr : ");  btct.printBytes(HCI.localRandResolvalbeAddr,6);
++//  Serial.print("hashresult : ");  btct.printBytes(hashresult,3);
++/*
++uint8_t hashresult[3];
++btct.ah(ATT.localIRK, toBeResolved, hashresult);
++if(hashresult[k] == toBeResolved[3 + k]){
++
++	SMP Identity Information Command
++	IRK: 0x8401F5AC4A8AD49B19606FA7459F3B19
++
++  uint8_t localIRK[16] = {0x84, 0x01, 0xF5, 0xAC, 0x4A, 0x8A, 0xD4, 0x9B, 0x19, 0x60, 0x6F, 0xA7, 0x45, 0x9F, 0x3B, 0x19};
++
++
++	SMP Identity Address Information Command 
++	Address Type: 0x01
++	Address: 0xC9E7FD28409B
++
++*/
++
++/*
++printed
++randomAddr : 0xCB, 0xD8, 0x21, 0x2B, 0x62, 0x4D
++Arrives at peer
++LE Add Device To Filter Accept List - Random - 4D:62:2B:21:D8:CB
++
++Peer address
++Connected to central: 45:2f:86:6f:6f:  -> 45: 0100 0101
++
++*/
++
++  //uint16_t SDC_HCI_OPCODE_CMD_LE_SET_PRIVACY_MODE = 0x204e;
++  //HCI.sendCommand(SDC_HCI_OPCODE_CMD_LE_SET_PRIVACY_MODE, 1, 0x01);
++
++  return HCI.leSetRandomAddress(HCI.localRandResolvalbeAddr);
++}
++
++
+ void BLELocalDevice::setAdvertisingData(BLEAdvertisingData& advertisingData)
+ {
+   _advertisingData = advertisingData;
+diff --git a/src/local/BLELocalDevice.h b/src/local/BLELocalDevice.h
+index 6c45c06..6ed0fda 100644
+--- a/src/local/BLELocalDevice.h
++++ b/src/local/BLELocalDevice.h
+@@ -54,6 +54,7 @@ public:
+   virtual bool setManufacturerData(const uint8_t manufacturerData[], int manufacturerDataLength);
+   virtual bool setManufacturerData(const uint16_t companyId, const uint8_t manufacturerData[], int manufacturerDataLength);
+   virtual bool setLocalName(const char *localName);
++  virtual bool initRandomAddress();
+ 
+   virtual void setAdvertisingData(BLEAdvertisingData& advertisingData);
+   virtual void setScanResponseData(BLEAdvertisingData& scanResponseData);
+diff --git a/src/utility/ATT.cpp b/src/utility/ATT.cpp
+index acdf5a9..f322e27 100644
+--- a/src/utility/ATT.cpp
++++ b/src/utility/ATT.cpp
+@@ -112,7 +112,7 @@ ATTClass::~ATTClass()
+ 
+ bool ATTClass::connect(uint8_t peerBdaddrType, uint8_t peerBdaddr[6])
+ {
+-  if (HCI.leCreateConn(0x0060, 0x0030, 0x00, peerBdaddrType, peerBdaddr, 0x00,
++  if (HCI.leCreateConn(0x0060, 0x0030, 0x00, peerBdaddrType, peerBdaddr, HCI.ownBdaddrType,
+                         0x0006, 0x000c, 0x0000, 0x00c8, 0x0004, 0x0006) != 0) {
+     return false;
+   }
+diff --git a/src/utility/ATT.h b/src/utility/ATT.h
+index c9f007f..dbbdd45 100644
+--- a/src/utility/ATT.h
++++ b/src/utility/ATT.h
+@@ -27,6 +27,7 @@
+ 
+ #define ATT_CID       0x0004
+ #define BLE_CTL       0x0008
++#define DM_CONN_MAX 8
+ 
+ #if DM_CONN_MAX
+ #define ATT_MAX_PEERS DM_CONN_MAX // Mbed + Cordio
+@@ -107,8 +108,7 @@ public:
+   KeyDistribution remoteKeyDistribution;
+   KeyDistribution localKeyDistribution;
+   uint8_t peerIRK[16];
+-  /// This is just a random number... Not sure it has use unless privacy mode is active.
+-  uint8_t localIRK[16] = {0x54,0x83,0x63,0x7c,0xc5,0x1e,0xf7,0xec,0x32,0xdd,0xad,0x51,0x89,0x4b,0x9e,0x07};
++  uint8_t localIRK[16] = {0x84, 0x01, 0xF5, 0xAC, 0x4A, 0x8A, 0xD4, 0x9B, 0x19, 0x60, 0x6F, 0xA7, 0x45, 0x9F, 0x3B, 0x19};
+ private:
+   virtual void error(uint16_t connectionHandle, uint8_t dlen, uint8_t data[]);
+   virtual void mtuReq(uint16_t connectionHandle, uint8_t dlen, uint8_t data[]);
+diff --git a/src/utility/BLEUuid.cpp b/src/utility/BLEUuid.cpp
+index 0465ea9..3cdc4f6 100644
+--- a/src/utility/BLEUuid.cpp
++++ b/src/utility/BLEUuid.cpp
+@@ -71,6 +71,50 @@ uint8_t BLEUuid::length() const
+   return _length;
+ }
+ 
++char* ultoa( unsigned long value, char *string, int radix )
++{
++  char tmp[33];
++  char *tp = tmp;
++  long i;
++  unsigned long v = value;
++  char *sp;
++  if ( string == NULL )
++  {
++    return 0;
++  }
++
++  if (radix > 36 || radix <= 1)
++  {
++    return 0;
++  }
++
++  while (v || tp == tmp)
++  {
++    i = v % radix;
++    v = v / radix;
++    if (i < 10)
++      *tp++ = i+'0';
++    else
++      *tp++ = i + 'a' - 10;
++  }
++
++  sp = string;
++
++
++  while (tp > tmp)
++    *sp++ = *--tp;
++  *sp = 0;
++
++  return string;
++}
++
++char* utoa( unsigned int value, char *string, int radix )
++{
++  return ultoa( value, string, radix ) ;
++}
++
++
++
+ const char* BLEUuid::uuidToString(const uint8_t* data, uint8_t length)
+ {
+   static char uuid[36 + 1];
+diff --git a/src/utility/GAP.cpp b/src/utility/GAP.cpp
+index f1bf02f..5f9772a 100644
+--- a/src/utility/GAP.cpp
++++ b/src/utility/GAP.cpp
+@@ -22,7 +22,7 @@
+ 
+ #include "GAP.h"
+ 
+-#define GAP_MAX_DISCOVERED_QUEUE_SIZE 32
++#define GAP_MAX_DISCOVERED_QUEUE_SIZE 5
+ 
+ #define GAP_ADV_IND (0x00)
+ #define GAP_ADV_SCAN_IND (0x02)
+@@ -54,7 +54,7 @@ int GAPClass::advertise(uint8_t* advData, uint8_t advDataLen, uint8_t* scanData,
+ 
+   stopAdvertise();
+ 
+-  if (HCI.leSetAdvertisingParameters(_advertisingInterval, _advertisingInterval, type, 0x00, 0x00, directBdaddr, 0x07, 0) != 0) {
++  if (HCI.leSetAdvertisingParameters(_advertisingInterval, _advertisingInterval, type, HCI.ownBdaddrType, 0x00, directBdaddr, 0x07, 0) != 0) {
+     return 0;
+   }
+ 
+@@ -86,14 +86,8 @@ int GAPClass::scan(bool withDuplicates)
+ {
+   HCI.leSetScanEnable(false, true);
+ 
+-  // active scan, 20 ms scan interval (N * 0.625), 20 ms scan window (N * 0.625), public own address type, no filter
+-  /*
+-    Warning (from BLUETOOTH SPECIFICATION 5.x):
+-    - scan interval: mandatory range from 0x0012 to 0x1000; only even values are valid
+-    - scan window: mandatory range from 0x0011 to 0x1000
+-    - The scan window can only be less than or equal to the scan interval
+-  */
+-  if (HCI.leSetScanParameters(0x01, 0x0020, 0x0020, 0x00, 0x00) != 0) {
++  // active scan, 10 ms scan interval (N * 0.625), 10 ms scan window (N * 0.625), public own address type, no filter
++  if (HCI.leSetScanParameters(0x01, 0x0010, 0x0010, HCI.ownBdaddrType, 0x00) != 0) {
+     return false;
+   }
+ 
+@@ -222,10 +216,8 @@ void GAPClass::handleLeAdvertisingReport(uint8_t type, uint8_t addressType, uint
+ 
+   if (discoveredDevice == NULL) {
+     if (_discoveredDevices.size() >= GAP_MAX_DISCOVERED_QUEUE_SIZE) {
+-      BLEDevice* device_first = _discoveredDevices.remove(0);
+-      if (device_first != NULL) {
+-        delete device_first;
+-      }
++      // drop
++      return;
+     }
+ 
+     discoveredDevice = new BLEDevice(addressType, address);
+diff --git a/src/utility/HCI.cpp b/src/utility/HCI.cpp
+index 1902abe..835996d 100644
+--- a/src/utility/HCI.cpp
++++ b/src/utility/HCI.cpp
+@@ -26,6 +26,8 @@
+ #include "bitDescriptions.h"
+ // #define _BLE_TRACE_
+ 
++#pragma GCC diagnostic push
++#pragma GCC diagnostic ignored "-Wshadow"
+ 
+ #define HCI_COMMAND_PKT   0x01
+ #define HCI_ACLDATA_PKT   0x02
+@@ -71,6 +73,7 @@
+ #define OCF_LE_CREATE_CONN                0x000d
+ #define OCF_LE_CANCEL_CONN                0x000e
+ #define OCF_LE_CONN_UPDATE                0x0013
++#define OCF_LE_SET_ADDRESS_RESOLUTION_ENABLE      0x002D
+ 
+ #define HCI_OE_USER_ENDED_CONNECTION 0x13
+ 
+@@ -301,6 +304,11 @@ int HCIClass::leSetRandomAddress(uint8_t addr[6])
+   return sendCommand(OGF_LE_CTL << 10 | OCF_LE_SET_RANDOM_ADDRESS, 6, addr);
+ }
+ 
++int HCIClass::leSetAddressResolutionEnable(uint8_t enable)
++{
++  return sendCommand(OGF_LE_CTL << 10 | OCF_LE_SET_ADDRESS_RESOLUTION_ENABLE, sizeof(enable), &enable);
++}
++
+ int HCIClass::leSetAdvertisingParameters(uint16_t minInterval, uint16_t maxInterval,
+                                          uint8_t advType, uint8_t ownBdaddrType,
+                                          uint8_t directBdaddrType, uint8_t directBdaddr[6],
+@@ -464,8 +472,8 @@ void HCIClass::saveNewAddress(uint8_t addressType, uint8_t* address, uint8_t* pe
+   if(_storeIRK!=0){
+     _storeIRK(address, peerIrk);
+   }
+-  // Again... this should work 
+-  // leAddResolvingAddress(addressType, address, peerIrk, localIrk);
++
++  leAddResolvingAddress(addressType, address, peerIrk, localIrk);
+ }
+ void HCIClass::leAddResolvingAddress(uint8_t addressType, uint8_t* peerAddress, uint8_t* peerIrk, uint8_t* localIrk){
+   leStopResolvingAddresses();
+@@ -482,14 +490,14 @@ void HCIClass::leAddResolvingAddress(uint8_t addressType, uint8_t* peerAddress,
+     addDevice.peerIRK[15-i]  = peerIrk[i];
+     addDevice.localIRK[15-i] = localIrk[i];
+   }
+-  Serial.print("ADDTYPE    :");
+-  btct.printBytes(&addDevice.peerAddressType,1);
+-  Serial.print("adddddd    :");
+-  btct.printBytes(addDevice.peerAddress,6);
+-  Serial.print("Peer IRK   :");
+-  btct.printBytes(addDevice.peerIRK,16);
+-  Serial.print("localIRK   :");
+-  btct.printBytes(addDevice.localIRK,16);
++  // Serial.print("ADDTYPE    :");
++  // btct.printBytes(&addDevice.peerAddressType,1);
++  // Serial.print("adddddd    :");
++  // btct.printBytes(addDevice.peerAddress,6);
++  // Serial.print("Peer IRK   :");
++  // btct.printBytes(addDevice.peerIRK,16);
++  // Serial.print("localIRK   :");
++  // btct.printBytes(addDevice.localIRK,16);
+   sendCommand(OGF_LE_CTL << 10 | 0x27, sizeof(addDevice), &addDevice); 
+ 
+   leStartResolvingAddresses();
+@@ -512,17 +520,21 @@ int HCIClass::leReadPeerResolvableAddress(uint8_t peerAddressType, uint8_t* peer
+   
+ 
+   int res = sendCommand(OGF_LE_CTL << 10 | 0x2B, sizeof(request), &request);
++#ifdef _BLE_TRACE_
+   Serial.print("res: 0x");
+   Serial.println(res, HEX);
++#endif
+   if(res==0){
+     struct __attribute__ ((packed)) Response {
+       uint8_t status;
+       uint8_t peerResolvableAddress[6];
+     } *response = (Response*)_cmdResponse;
++#ifdef _BLE_TRACE_
+     Serial.print("Address resolution status: 0x");
+     Serial.println(response->status, HEX);
+     Serial.print("peer resolvable address: ");
+     btct.printBytes(response->peerResolvableAddress,6);
++#endif
+   }
+   return res;
+ }
+@@ -553,9 +565,6 @@ int HCIClass::readStoredLK(uint8_t BD_ADDR[], uint8_t read_all ){
+ }
+ 
+ int HCIClass::tryResolveAddress(uint8_t* BDAddr, uint8_t* address){
+-  uint8_t iphone[16] = {0xA6, 0xD2, 0xD, 0xD3, 0x4F, 0x13, 0x42, 0x4F, 0xE1, 0xC1, 0xFD, 0x22, 0x2E, 0xC5, 0x6A, 0x2D};
+-  uint8_t irk[16];
+-  for(int i=0; i<16; i++) irk[15-i] = iphone[i];
+   bool foundMatch = false;
+   if(HCI._getIRKs!=0){
+     uint8_t nIRKs = 0;
+@@ -566,7 +575,9 @@ int HCIClass::tryResolveAddress(uint8_t* BDAddr, uint8_t* address){
+ 
+ 
+     if(!HCI._getIRKs(&nIRKs, BDAddrType, BADDRs, IRKs)){
++#ifdef _BLE_TRACE_
+       Serial.println("error getting IRKs.");
++#endif
+     }
+     for(int i=0; i<nIRKs; i++){
+       if(!foundMatch){
+@@ -870,7 +881,7 @@ void HCIClass::handleEventPkt(uint8_t /*plen*/, uint8_t pdata[])
+           {
+             uint8_t response[8];
+             response[0] = CONNECTION_IDENTITY_ADDRESS; // Identity address information
+-            response[1] = 0x00; // Static local address
++            response[1] = HCI.ownBdaddrType;
+             for(int i=0; i<6; i++) response[7-i] = HCI.localAddr[i];
+             HCI.sendAclPkt(encryptionChange->connectionHandle, SECURITY_CID, sizeof(response), response);
+           }
+@@ -1497,11 +1508,15 @@ AuthReq HCIClass::localAuthreq(){
+ void HCIClass::dumpPkt(const char* prefix, uint8_t plen, uint8_t pdata[])
+ {
+   if (_debug) {
+-    _debug->print(prefix);
++    _debug->println(prefix);
++    // filter for all lines starting with 0000\t and import them into Wireshark with
++    // Import From Hex Dump and select Bluetooth H4
++    _debug->print("0000\t");
+ 
+     for (uint8_t i = 0; i < plen; i++) {
+       byte b = pdata[i];
+ 
++      _debug->print(" ");
+       if (b < 16) {
+         _debug->print("0");
+       }
+@@ -1518,3 +1533,5 @@ void HCIClass::dumpPkt(const char* prefix, uint8_t plen, uint8_t pdata[])
+ HCIClass HCIObj;
+ HCIClass& HCI = HCIObj;
+ #endif
++
++#pragma GCC diagnostic pop
+diff --git a/src/utility/HCI.h b/src/utility/HCI.h
+index 0a530ce..e9e3973 100644
+--- a/src/utility/HCI.h
++++ b/src/utility/HCI.h
+@@ -48,6 +48,14 @@ enum LE_META_EVENT {
+   READ_LOCAL_P256_COMPLETE  = 0x08,
+   GENERATE_DH_KEY_COMPLETE  = 0x09
+ };
++
++enum LE_ADDR_TYPE {
++  BT_ADDR_LE_PUBLIC    = 0x00,
++  BT_ADDR_LE_RANDOM    = 0x01,
++  BT_ADDR_LE_PUBLIC_ID = 0x02,
++  BT_ADDR_LE_RANDOM_ID = 0x03
++};
++
+ String metaEventToString(LE_META_EVENT event);
+ String commandToString(LE_COMMAND command);
+ 
+@@ -104,7 +112,8 @@ public:
+   virtual int leStopResolvingAddresses();
+   virtual int leStartResolvingAddresses();
+   virtual int leReadPeerResolvableAddress(uint8_t peerAddressType, uint8_t* peerIdentityAddress, uint8_t* peerResolvableAddress);
+-
++  virtual int leSetAddressResolutionEnable(uint8_t enable);
++  
+   virtual void readStoredLKs();
+   virtual int readStoredLK(uint8_t BD_ADDR[], uint8_t read_all = 0);
+   virtual void writeLK(uint8_t peerAddress[], uint8_t LK[]);
+@@ -126,6 +135,8 @@ public:
+   uint8_t Nb[16];
+   uint8_t DHKey[32];
+   uint8_t localAddr[6];
++  uint8_t localRandResolvalbeAddr[6];
++  uint8_t ownBdaddrType = BT_ADDR_LE_PUBLIC;
+   uint8_t LTK[16];
+   virtual int getLTK(uint8_t* address, uint8_t* LTK);
+   virtual int storeLTK(uint8_t* address, uint8_t* LTK);
+diff --git a/src/utility/HCIUartTransport.cpp b/src/utility/HCIUartTransport.cpp
+index 1b1a513..b50cd59 100644
+--- a/src/utility/HCIUartTransport.cpp
++++ b/src/utility/HCIUartTransport.cpp
+@@ -29,6 +29,8 @@
+ // SerialHCI is already defined in the variant
+ #elif defined(ARDUINO_PORTENTA_H7_M7) || defined(ARDUINO_NICLA_VISION)
+ #define SerialHCI Serial2
++#elif defined(ARDUINO_ARCH_SPRESENSE)
++#define SerialHCI Serial2
+ #else
+ #error "Unsupported board selected!"
+ #endif
+@@ -45,8 +47,11 @@ HCIUartTransportClass::~HCIUartTransportClass()
+ 
+ int HCIUartTransportClass::begin()
+ {
++#if defined(ARDUINO_ARCH_SPRESENSE)
++  _uart->begin(_baudrate, SERIAL_RTSCTS | SERIAL_8N1);
++#else
+   _uart->begin(_baudrate);
+-
++#endif
+   return 1;
+ }
+ 
+@@ -95,6 +100,8 @@ size_t HCIUartTransportClass::write(const uint8_t* data, size_t length)
+ 
+ #if defined(ARDUINO_AVR_UNO_WIFI_REV2) || defined(ARDUINO_NANO_RP2040_CONNECT)
+ HCIUartTransportClass HCIUartTransport(SerialHCI, 119600);
++#elif defined(ARDUINO_ARCH_SPRESENSE)
++HCIUartTransportClass HCIUartTransport(SerialHCI, 115200);
+ #else
+ HCIUartTransportClass HCIUartTransport(SerialHCI, 912600);
+ #endif
+diff --git a/src/utility/L2CAPSignaling.cpp b/src/utility/L2CAPSignaling.cpp
+index 2ef08b6..0bea96e 100644
+--- a/src/utility/L2CAPSignaling.cpp
++++ b/src/utility/L2CAPSignaling.cpp
+@@ -229,10 +229,10 @@ void L2CAPSignalingClass::handleSecurityData(uint16_t connectionHandle, uint8_t
+     btct.printBytes(U,32);
+     Serial.print("V      : ");
+     btct.printBytes(V,32);
+-    Serial.print("X      : ");
+-    btct.printBytes(X,16);
+-    Serial.print("Y      : ");
+-    btct.printBytes(Y,16);
++    Serial.print("Na     : ");
++    btct.printBytes(HCI.Na,16);
++    Serial.print("Nb     : ");
++    btct.printBytes(HCI.Nb,16);
+     Serial.print("g2res  : ");
+     btct.printBytes(g2Result,4);
+     Serial.print("Result : ");
+@@ -377,7 +377,12 @@ void L2CAPSignalingClass::smCalculateLTKandConfirm(uint16_t handle, uint8_t expe
+   
+   HCI.readBdAddr();
+   memcpy(&localAddress[1],HCI.localAddr,6);
+-  localAddress[0] = 0; // IOT 33 uses a static address // TODO: confirm for Nano BLE
++  localAddress[0] = HCI.ownBdaddrType;
++#if defined(ARDUINO_ARCH_SPRESENSE)
++  for(int i=0; i<6; i++) {
++    localAddress[6-i] = HCI.localRandResolvalbeAddr[i];
++  }
++#endif
+ 
+   // Compute the LTK and MacKey
+   uint8_t MacKey[16];
+diff --git a/src/utility/btct.cpp b/src/utility/btct.cpp
+index b4faf05..1c11850 100644
+--- a/src/utility/btct.cpp
++++ b/src/utility/btct.cpp
+@@ -60,16 +60,8 @@ int BluetoothCryptoToolbox::f5(uint8_t DHKey[],uint8_t N_master[], uint8_t N_sla
+     printBytes(BD_ADDR_slave, ADDR_LEN);
+ #endif
+ 
+-    uint8_t ADD_M[7];
+-    uint8_t ADD_S[7];
+     uint8_t T[16];
+ 
+-    for(int i=0; i<6; i++){
+-        ADD_M[1+i] = BD_ADDR_master[i];
+-        ADD_M[0] = 0x00;
+-        ADD_S[i+1] = BD_ADDR_slave[i];
+-        ADD_S[0] = 0x00;
+-    }
+     struct __attribute__ ((packed)) CmacInput
+     {
+         uint8_t counter;
+@@ -136,18 +128,17 @@ void BluetoothCryptoToolbox::testAh()
+ {
+     uint8_t irk[16] = {0xec,0x02,0x34,0xa3,0x57,0xc8,0xad,0x05,0x34,0x10,0x10,0xa6,0x0a,0x39,0x7d,0x9b};         
+     uint8_t r[3]   = {0x70,0x81,0x94};
+-    uint8_t expected_AES[16] = {0x15,0x9d,0x5f,0xb7,0x2e,0xbe,0x23,0x11,0xa4,0x8c,0x1b,0xdc,0xc4,0x0d,0xfb,0xaa};
+-    uint8_t expected_final[3] = {0x0d,0xfb,0xaa};
++//    uint8_t expected_AES[16] = {0x15,0x9d,0x5f,0xb7,0x2e,0xbe,0x23,0x11,0xa4,0x8c,0x1b,0xdc,0xc4,0x0d,0xfb,0xaa};
++//    uint8_t expected_final[3] = {0x0d,0xfb,0xaa};
+     
+-    for(int i=0; i<3; i++) r[2-i] = expected_final[3+i];
+     uint8_t ourResult[3];
+-    ah(irk, expected_final, ourResult);
++    ah(irk, r, ourResult);
+ 
+ 
+-    Serial.print("Expected   : ");
+-    printBytes(&expected_final[3], 3);
+-    Serial.print("Actual     : ");
+-    printBytes(ourResult, 3);
++  //  Serial.print("Expected   : ");
++  //  printBytes(expected_final, 3);
++  //  Serial.print("Actual     : ");
++  //  printBytes(ourResult, 3);
+ }
+ 
+ int BluetoothCryptoToolbox::g2(uint8_t U[], uint8_t V[], uint8_t X[], uint8_t Y[], uint8_t out[4])
+@@ -170,7 +161,7 @@ void BluetoothCryptoToolbox::testg2(){
+     uint8_t V[32] = {0x55,0x18,0x8b,0x3d,0x32,0xf6,0xbb,0x9a,0x90,0x0a,0xfc,0xfb,0xee,0xd4,0xe7,0x2a,0x59,0xcb,0x9a,0xc2,0xf1,0x9d,0x7c,0xfb,0x6b,0x4f,0xdd,0x49,0xf4,0x7f,0xc5,0xfd};
+     uint8_t X[16] = {0xd5,0xcb,0x84,0x54,0xd1,0x77,0x73,0x3e,0xff,0xff,0xb2,0xec,0x71,0x2b,0xae,0xab};
+     uint8_t Y[16] = {0xa6,0xe8,0xe7,0xcc,0x25,0xa7,0x5f,0x6e,0x21,0x65,0x83,0xf7,0xff,0x3d,0xc4,0xcf};
+-    uint8_t AES[16] = {0x15,0x36,0xd1,0x8d,0xe3,0xd2,0x0d,0xf9,0x9b,0x70,0x44,0xc1,0x2f,0x9e,0xd5,0xba};
++//    uint8_t AES[16] = {0x15,0x36,0xd1,0x8d,0xe3,0xd2,0x0d,0xf9,0x9b,0x70,0x44,0xc1,0x2f,0x9e,0xd5,0xba};
+     uint8_t out[4];
+     
+     

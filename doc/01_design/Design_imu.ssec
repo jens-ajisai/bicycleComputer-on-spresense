@@ -1,0 +1,85 @@
+[FRAGMENT]
+
+[SECTION]
+TITLE: IMU Design
+
+[REQUIREMENT]
+UID: HLD-IMU
+STATUS: Approved
+VERIFICATION: Review
+STATEMENT: High-Level Design - Interfaces
+RATIONALE: None
+COMMENT: >>>
+
+Event-based Interface provided by IMU Module
+
+=================== ========= ========= ===========================
+Event               Direction Parameter Description
+=================== ========= ========= ===========================
+IMU_EVT_ORIENTATION out                 not used.
+IMU_EVT_FALL        out                 not used.
+IMU_EVT_MOVED       out                 On movement detection.
+IMU_EVT_STILL       out                 When 5 minutes no movement.
+IMU_EVT_ERROR       out                 on error
+=================== ========= ========= ===========================
+
+Event-based Interface used by IMU Module
+
+========================  =========  ===============================  ======================================================================================
+Event                     Direction  Parameter                        Description
+========================  =========  ===============================  ======================================================================================
+APP_MANAGER_EVT_RUNLEVEL  in         state, connection                Initialize or deinitialize the IMU module based on the defined runlevel.
+========================  =========  ===============================  ======================================================================================
+
+<<<
+REFS:
+- TYPE: Parent
+  VALUE: REQ-THEFT-001-02
+- TYPE: Parent
+  VALUE: REQ-SYSTEM-006
+
+[REQUIREMENT]
+UID: LLD-IMU-001
+STATUS: Approved
+VERIFICATION: ManualTest
+STATEMENT: Configure an interrupt on a horizontal movement.
+RATIONALE: The application shall wake up on movement if in deep sleep. If active movement shall be used as input for the anti-theft module.
+COMMENT: >>>
+Configure the accelerometer to send an interrupt.
+Set the frequency to 100Hz.
+Activate the interrupt generator on the INT1 pin.
+Latch the interrupt that the flag is set until reading the status. Reading the register is not available during interrupt mode, but it will be read in a poll thread.
+Enable interrupt for Z and Y axis. The module is mounted in a way that is left/right and forwards/backwards. Not up/down.
+Set the interrupt threshold to 250mg and duration to 0 ms.
+<<<
+REFS:
+- TYPE: Parent
+  VALUE: REQ-THEFT-001-02
+- TYPE: Parent
+  VALUE: REQ-SYSTEM-006
+
+[REQUIREMENT]
+UID: LLD-IMU-002
+STATUS: Approved
+VERIFICATION: ManualTest
+STATEMENT: Send an event on movement and send an even for still after 5 minutes of no movement.
+RATIONALE: The application shall wake up on movement if in deep sleep. If active movement shall be used as input for the anti-theft module.
+COMMENT: Start a poll function that reads a flag set in the interrupt handler. The interrupt handler may not contain any logic to immediately finish.
+REFS:
+- TYPE: Parent
+  VALUE: REQ-THEFT-001-02
+- TYPE: Parent
+  VALUE: REQ-SYSTEM-006
+
+[REQUIREMENT]
+UID: LLD-IMU-003
+STATUS: Rejected
+VERIFICATION: None
+STATEMENT: Feed the accelerometer, gyroscope and magnetometer values into a Kalman filter provided by the library Adafruit_NXPSensorFusion to calculate the absolute orientation AHRS.
+RATIONALE: Absolute orientation is not used for any functionality. Therefore it is in status Rejected (and deactivated in the code).
+COMMENT: Log out every 30 updates.
+REFS:
+- TYPE: Parent
+  VALUE: REQ-ACC-001
+
+[/SECTION]

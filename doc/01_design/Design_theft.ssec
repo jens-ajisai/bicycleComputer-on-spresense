@@ -1,0 +1,98 @@
+[FRAGMENT]
+
+[SECTION]
+TITLE: Anti-Theft Design
+
+[REQUIREMENT]
+UID: HLD-THEFT
+STATUS: Approved
+VERIFICATION: Review
+STATEMENT: High-Level Design - Interfaces
+RATIONALE: None
+COMMENT: >>>
+
+Event-based Interface provided by Anti-Theft Module
+
+======================= ========= ========= ===================
+Event                   Direction Parameter Description
+======================= ========= ========= ===================
+ANTI_THEFT_EVT_DETECTED out                 On theft detection.
+======================= ========= ========= ===================
+
+Event-based Interface used by Anti-Theft Module
+
++------------------------------+-----------+----------------+---------------------------------------------------+
+| Event                        | Direction | Parameter      | Description                                       |
++==============================+===========+================+===================================================+
+| IMU_EVT_MOVED                | in        |                | On movement detection.                            |
++------------------------------+-----------+----------------+---------------------------------------------------+
+| IMU_EVT_STILL                | in        |                | When 5 minutes of no movement.                    |
++------------------------------+-----------+----------------+---------------------------------------------------+
+| CYCLE_SENSOR_EVT_SAW_MOBILE  | in        |                | When the registered smartphone is seen.           |
++------------------------------+-----------+----------------+---------------------------------------------------+
+| CYCLE_SENSOR_EVT_LOST_MOBILE | in        |                | When the registered smartphone went out of range. |
++------------------------------+-----------+----------------+---------------------------------------------------+
+| GNSS_EVT_GEO_FENCE           | in        | id, transition | Notification of a geo fence {transiton} for {id}  |
++------------------------------+-----------+----------------+---------------------------------------------------+
+| APP_MANAGER_EVT_RUNLEVEL     | in        |                | not used                                          |
++------------------------------+-----------+----------------+---------------------------------------------------+
+
+<<<
+REFS:
+- TYPE: Parent
+  VALUE: REQ-THEFT-001
+
+[REQUIREMENT]
+UID: LLD-THEFT-001
+STATUS: Approved
+VERIFICATION: AutomaticTest
+STATEMENT: Manage geofence state. States are inside the home, during a break, and exiting the home/break. The GNSS module is used.
+RATIONALE: These are the places where theft likely occurs (i.e. not during riding the bicycle.)
+COMMENT: The location of the home is known at compile time. The break is determined by changing the phone state to away and being on a trip.
+REFS:
+- TYPE: Parent
+  VALUE: REQ-THEFT-001-01
+
+[REQUIREMENT]
+UID: LLD-THEFT-002
+STATUS: Approved
+VERIFICATION: AutomaticTest
+STATEMENT: Manage phone states. States are nearby and away. Changes are received by events from the BLE module.
+RATIONALE: During riding the bike (= movement) the phone is nearby which is allowed. On the other side when the phone is away the bike should not move.
+REFS:
+- TYPE: Parent
+  VALUE: REQ-THEFT-001-02
+
+[REQUIREMENT]
+UID: LLD-THEFT-003
+STATUS: Approved
+VERIFICATION: AutomaticTest
+STATEMENT: Combine phone state and geofence into activity state. Activity state is being at home, on a trip riding and a trip during a break.
+RATIONALE: None
+REFS:
+- TYPE: Parent
+  VALUE: REQ-THEFT-001-03
+
+[REQUIREMENT]
+UID: LLD-THEFT-004
+STATUS: Approved
+VERIFICATION: AutomaticTest
+STATEMENT: Manage movement states. States are still and moving. Changes are received by events from the imu module.
+RATIONALE: For fast recognition, movement is used because when exiting the geofence the bike is already stolen. 
+COMMENT: However it could be still a false positive at this time e.g. due to wind.
+REFS:
+- TYPE: Parent
+  VALUE: REQ-THEFT-001-02
+
+[REQUIREMENT]
+UID: LLD-THEFT-005
+STATUS: Approved
+VERIFICATION: AutomaticTest
+STATEMENT: States and their transitions shall be combined to trigger a theft alarm. It is when (1) (activity is at home OR during break) AND phone is away AND ( movement is detected OR geofence home is left).
+RATIONALE: It is no theft when the phone is nearby OR activity is being on a trip OR movement is still. 
+COMMENT: However it could be still a false positive at this time e.g. due to wind.
+REFS:
+- TYPE: Parent
+  VALUE: REQ-THEFT-001-02
+
+[/SECTION]
